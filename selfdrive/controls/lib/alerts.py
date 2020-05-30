@@ -201,8 +201,8 @@ ALERTS = [
 
   Alert(
       "startup",
-      "Be ready to take over at any time",
-      "OP Community",
+      "Starting Chrysler AutoPilot...",
+      "Always Drive Autonomously Responsibly",
       AlertStatus.critical, AlertSize.full,
       Priority.LOWER, VisualAlert.none, AudibleAlert.none, 0., 0., 8.),
 
