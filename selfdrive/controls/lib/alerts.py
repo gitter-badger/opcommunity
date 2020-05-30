@@ -169,7 +169,7 @@ ALERTS = [
       "TOUCH STEERING WHEEL: No Face Detected",
       "",
       AlertStatus.normal, AlertSize.small,
-      Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, .0, .1, .1, alert_rate=0.75),
+      Priority.LOW, VisualAlert.steerRequired, AudibleAlert.chimeWarning2, .0, .1, .1, alert_rate=0.75),
 
   Alert(
       "promptDriverUnresponsive",
