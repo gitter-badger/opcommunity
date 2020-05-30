@@ -202,8 +202,8 @@ ALERTS = [
   Alert(
       "startup",
       "Be ready to take over at any time",
-      "Do not forget to PRAY!",
-      AlertStatus.normal, AlertSize.mid,
+      "OP Community",
+      AlertStatus.critical, AlertSize.full,
       Priority.LOWER, VisualAlert.none, AudibleAlert.none, 0., 0., 8.),
 
   Alert(
