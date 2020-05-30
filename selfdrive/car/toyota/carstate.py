@@ -196,7 +196,10 @@ class CarState(CarStateBase):
     else:
       self.main_on = cp.vl["PCM_CRUISE_2"]['MAIN_ON'] != 0
       ret.cruiseState.speed = cp.vl["PCM_CRUISE_2"]['SET_SPEED']
-      self.low_speed_lockout = cp.vl["PCM_CRUISE_2"]['LOW_SPEED_LOCKOUT'] == 2
+      if self.CP.carFingerprint == CAR.COROLLAH_TSS2:
+        self.low_speed_lockout = False
+      else:
+        self.low_speed_lockout = cp.vl["PCM_CRUISE_2"]['LOW_SPEED_LOCKOUT'] == 2
     ret.cruiseState.available = self.main_on
     v_cruise_pcm_max = ret.cruiseState.speed
     if self.CP.carFingerprint in TSS2_CAR:
@@ -248,9 +251,9 @@ class CarState(CarStateBase):
       ret.cruiseState.speed = int(min(ret.cruiseState.speed, factor * interp(np.max(self.Angles), self.Angle, self.Angle_Speed)))
       ret.cruiseState.speed = int(min(ret.cruiseState.speed, factor * interp(np.max(self.Angles_later), self.Angle, self.Angle_Speed)))
     else:
-      self.Angles[self.Angle_counter] = abs(ret.steeringAngle)/2
+      self.Angles[self.Angle_counter] = abs(ret.steeringAngle) * 0.8
       if ret.vEgo > 11:
-        self.Angles_later[self.Angle_counter] = abs(angle_later)/2
+        self.Angles_later[self.Angle_counter] = abs(angle_later) * 0.8
       else:
         self.Angles_later[self.Angle_counter] = 0.0
     self.Angle_counter = (self.Angle_counter + 1 ) % 250

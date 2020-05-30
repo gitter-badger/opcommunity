@@ -576,8 +576,8 @@ ALERTS = [
       "plannerError",
       "TAKE CONTROL IMMEDIATELY",
       "Planner Solution Error",
-      AlertStatus.critical, AlertSize.full,
-      Priority.HIGHEST, VisualAlert.steerRequired, AudibleAlert.chimeWarningRepeat, 2.2, 3., 4.),
+      AlertStatus.normal, AlertSize.mid,
+      Priority.LOW, VisualAlert.steerRequired, AudibleAlert.chimeError, 2.2, 3., 4.),
 
   Alert(
       "relayMalfunction",
