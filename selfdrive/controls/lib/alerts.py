@@ -271,21 +271,21 @@ ALERTS = [
   Alert(
       "preLaneChangeLeft",
       "Steer Left to Start Lane Change",
-      "Monitor Other Vehicles",
+      "Monitor Traffic",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, .0, .1, .1, alert_rate=0.75),
 
   Alert(
       "preLaneChangeRight",
       "Steer Right to Start Lane Change",
-      "Monitor Other Vehicles",
+      "Monitor Traffic",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, .0, .1, .1, alert_rate=0.75),
 
   Alert(
       "laneChange",
       "Changing Lane",
-      "Monitor Other Vehicles",
+      "Monitor Traffic",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, .0, .1, .1),
 
