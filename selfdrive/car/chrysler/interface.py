@@ -37,6 +37,11 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatio = 12.7
       ret.steerActuatorDelay = 0.2  # in seconds
 
+    if candidate in (CAR.CHRYSLER_300_2018):
+      ret.wheelbase = 3.05308 # in meters
+      ret.steerRatio = 15.5 # 2013 V-6 (RWD) — 15.5:1 V-6 (AWD) — 16.5:1 V-8 (RWD) — 15.5:1 V-8 (AWD) — 16.5:1
+      ret.mass = 1828.0 + STD_CARGO_KG # 2013 V-6 RWD
+      
     ret.centerToFront = ret.wheelbase * 0.44
 
     ret.minSteerSpeed = 3.8  # m/s
