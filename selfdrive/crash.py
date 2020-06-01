@@ -34,13 +34,8 @@ else:
     ipaddress = requests.get('https://checkip.amazonaws.com/').text.strip()
   except:
     ipaddress = "255.255.255.255"
-  error_tags = {'dirty': dirty, 'dongle_id': dongle_id, 'branch': branch, 'remote': origin}
-  username = op_params.get('username', None)
-  if username is not None and isinstance(username, str):
-    error_tags['username'] = username + uniqueID
-  else:
-    error_tags['username'] = uniqueID
-
+  error_tags = {'dirty': dirty, 'username': uniqueID, 'dongle_id': dongle_id, 'branch': branch, 'remote': origin}
+  
   client = Client('https://21681855cccf4d889a6369637d1721fe@o400203.ingest.sentry.io/5258423',
                   install_sys_hook=False, transport=HTTPTransport, release=version, tags=error_tags)
 
