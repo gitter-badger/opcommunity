@@ -142,7 +142,7 @@ static bool handle_df_touch(UIState *s, int touch_x, int touch_y) {
    if (touch_x >= 1212 && touch_x <= 1310 && touch_y >= 902 && touch_y <= 1013) {
       s->scene.uilayout_sidebarcollapsed = true;  // collapse sidebar when tapping df button
       s->scene.dfButtonStatus++;
-      if (s->scene.dfButtonStatus > 2) {
+      if (s->scene.dfButtonStatus > 3) {
         s->scene.dfButtonStatus = 0;
       }
       send_df(s, s->scene.dfButtonStatus);
@@ -1183,7 +1183,7 @@ int main(int argc, char* argv[]) {
     if (touched == 1) {
       set_awake(s, true);
       handle_sidebar_touch(s, touch_x, touch_y);
-      if (!handle_df_touch(s, touch_x, touch_y)){  // disables sidebar from popping out when tapping df bu
+      if (!handle_df_touch(s, touch_x, touch_y)){  // disables sidebar from popping out when tapping df button
         handle_vision_touch(s, touch_x, touch_y);
       }
     }

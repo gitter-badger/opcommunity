@@ -29,10 +29,12 @@ from selfdrive.controls.lib.planner import LON_MPC_STEP
 from selfdrive.locationd.calibration_helpers import Calibration, Filter
 #from common.travis_checker import travis
 from common.op_params import opParams
-from selfdrive.controls.df_alert_manager import DfAlertManager
+from selfdrive.controls.lib.dynamic_follow.df_manager import dfManager
 
 op_params = opParams()
+df_manager = dfManager(op_params)
 
+hide_auto_df_alerts = op_params.get('hide_auto_df_alerts', False)
 traffic_light_alerts = op_params.get('traffic_light_alerts', True)
 
 #LANE_DEPARTURE_THRESHOLD = 0.1
@@ -149,7 +151,7 @@ def data_sample(CI, CC, sm, can_sock, state, mismatch_counter, can_error_counter
   return CS, events, cal_perc, mismatch_counter, can_error_counter, events_arne182
 
 
-def state_transition(frame, CS, CP, state, events, soft_disable_timer, v_cruise_kph, AM, events_arne182, arne_sm, df_alert_manager):
+def state_transition(frame, CS, CP, state, events, soft_disable_timer, v_cruise_kph, AM, events_arne182, arne_sm):
   """Compute conditional state transitions and execute actions on state transitions"""
   enabled = isEnabled(state)
 
@@ -164,6 +166,17 @@ def state_transition(frame, CS, CP, state, events, soft_disable_timer, v_cruise_
   # decrease the soft disable timer at every step, as it's reset on
   # entrance in SOFT_DISABLING state
   soft_disable_timer = max(0, soft_disable_timer - 1)
+
+  df_out = df_manager.update()
+  if df_out.changed:
+    df_alert = 'dfButtonAlert'
+    if df_out.is_auto and df_out.last_is_auto and not hide_auto_df_alerts:
+      if CS.cruiseState.enabled:
+        df_alert += 'NoSound'
+        AM.add(frame, df_alert, enabled, extra_text_1=df_out.model_profile_text + ' (auto)', extra_text_2='Dynamic follow: {} profile active'.format(df_out.model_profile_text))
+    else:
+      AM.add(frame, df_alert, enabled, extra_text_1=df_out.user_profile_text, extra_text_2='Dynamic follow: {} profile active'.format(df_out.user_profile_text))
+
   if traffic_light_alerts:
     traffic_status = arne_sm['trafficModelEvent'].status
     traffic_confidence = round(arne_sm['trafficModelEvent'].confidence * 100, 2)
@@ -174,10 +187,6 @@ def state_transition(frame, CS, CP, state, events, soft_disable_timer, v_cruise_
         AM.add(frame, 'trafficGreen', enabled, extra_text_2=' ({}%)'.format(traffic_confidence))
       elif traffic_status == 'DEAD':  # confidence will be 100
         AM.add(frame, 'trafficDead', enabled)
-
-  df_alert = df_alert_manager.update(arne_sm)
-  if df_alert is not None:
-    AM.add(frame, 'dfButtonAlert', enabled, extra_text_1=df_alert, extra_text_2='Dynamic follow: {} profile active'.format(df_alert))
 
   # DISABLED
   if state == State.disabled:
@@ -669,7 +678,6 @@ def controlsd_thread(sm=None, pm=None, can_sock=None, arne_sm=None):
 
 
   prof = Profiler(False)  # off by default
-  df_alert_manager = DfAlertManager(op_params)
 
   while True:
     start_time = sec_since_boot()
@@ -718,7 +726,7 @@ def controlsd_thread(sm=None, pm=None, can_sock=None, arne_sm=None):
     if not read_only:
       # update control state
       state, soft_disable_timer, v_cruise_kph, v_cruise_kph_last = \
-        state_transition(sm.frame, CS, CP, state, events, soft_disable_timer, v_cruise_kph, AM, events_arne182, arne_sm, df_alert_manager)
+        state_transition(sm.frame, CS, CP, state, events, soft_disable_timer, v_cruise_kph, AM, events_arne182, arne_sm)
       prof.checkpoint("State transition")
 
     # Compute actuators (runs PID loops and lateral MPC)
