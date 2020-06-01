@@ -41,7 +41,7 @@ else:
   else:
     error_tags['username'] = uniqueID
 
-  client = Client('https://137e8e621f114f858f4c392c52e18c6d:8aba82f49af040c8aac45e95a8484970@sentry.io/1404547',
+  client = Client('https://21681855cccf4d889a6369637d1721fe@o400203.ingest.sentry.io/5258423',
                   install_sys_hook=False, transport=HTTPTransport, release=version, tags=error_tags)
 
   def capture_exception(*args, **kwargs):
