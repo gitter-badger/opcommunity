@@ -131,6 +131,7 @@ class Planner():
   def choose_solution(self, v_cruise_setpoint, enabled, lead_1, lead_2, steeringAngle):
     center_x = -2.5 # Wheel base 2.5m
     lead1_check = True
+    mpc_offset = opParams().get('mpc_offset', default=5.0)
     lead2_check = True
     if steeringAngle > 100: # only at high angles
       center_y = -1+2.5/math.tan(steeringAngle/1800.*math.pi) # Car Width 2m. Left side considered in left hand turn
@@ -150,7 +151,7 @@ class Planner():
         if self.mpc_model.v_mpc > 13.0: 
           solutions['model'] = NO_CURVATURE_SPEED
         else:
-          solutions['model'] = self.mpc_model.v_mpc + 5.0
+          solutions['model'] = self.mpc_model.v_mpc + mpc_offset
       solutions['cruise'] = self.v_cruise
 
       slowest = min(solutions, key=solutions.get)
@@ -167,16 +168,16 @@ class Planner():
         self.v_acc = self.v_cruise
         self.a_acc = self.a_cruise
       elif slowest == 'model':
-        self.v_acc = self.mpc_model.v_mpc + 5.0
+        self.v_acc = self.mpc_model.v_mpc + mpc_offset
         self.a_acc = self.mpc_model.a_mpc
         print("Model Speed kph")
         print(self.mpc_model.v_mpc*3.6)
 
     self.v_acc_future = v_cruise_setpoint
     if lead1_check:
-      self.v_acc_future = min([self.mpc1.v_mpc_future, self.v_acc_future, self.mpc_model.v_mpc_future + 5.0])
+      self.v_acc_future = min([self.mpc1.v_mpc_future, self.v_acc_future, self.mpc_model.v_mpc_future + mpc_offset])
     if lead2_check:
-      self.v_acc_future = min([self.mpc2.v_mpc_future, self.v_acc_future, self.mpc_model.v_mpc_future + 5.0])
+      self.v_acc_future = min([self.mpc2.v_mpc_future, self.v_acc_future, self.mpc_model.v_mpc_future + mpc_offset])
     
 
   def update(self, sm, pm, CP, VM, PP, arne_sm):
@@ -201,11 +202,11 @@ class Planner():
     v_ego = sm['carState'].vEgo
     blinkers = sm['carState'].leftBlinker or sm['carState'].rightBlinker
     if blinkers:
-      steering_angle = sm['carState'].steeringAngle/2.0
+      steering_angle = sm['carState'].steeringAngle * 0.8
       if v_ego < 11:
         angle_later = 0.
       else:
-        angle_later = arne_sm['latControl'].anglelater/2.0
+        angle_later = arne_sm['latControl'].anglelater * 0.8
     else:
       steering_angle = sm['carState'].steeringAngle
       if v_ego < 11:
@@ -268,7 +269,7 @@ class Planner():
             v_speedlimit_ahead = v_speedlimit_ahead * (1. + self.offset/100.0)
           if v_speedlimit_ahead > fixed_offset:
             v_speedlimit_ahead = v_speedlimit_ahead + fixed_offset
-      if sm['liveMapData'].curvatureValid and osm and self.osm and (sm['liveMapData'].lastGps.timestamp -time.mktime(now.timetuple()) * 1000) < 10000:
+      if sm['liveMapData'].curvatureValid and sm['liveMapData'].distToTurn < speed_ahead_distance and osm and self.osm and (sm['liveMapData'].lastGps.timestamp -time.mktime(now.timetuple()) * 1000) < 10000:
         curvature = abs(sm['liveMapData'].curvature)
         radius = 1/max(1e-4, curvature) * curvature_factor
         if gas_button_status == 1:
@@ -292,7 +293,7 @@ class Planner():
 
     # Calculate speed for normal cruise control
     if enabled and not self.first_loop and not sm['carState'].brakePressed and not sm['carState'].gasPressed:
-      accel_limits = [float(x) for x in calc_cruise_accel_limits(v_ego, following, gas_button_status)]
+      accel_limits = [float(x) for x in calc_cruise_accel_limits(v_ego, following and (self.longitudinalPlanSource == 'mpc1' or self.longitudinalPlanSource == 'mpc2'), gas_button_status)]
       jerk_limits = [min(-0.1, accel_limits[0]), max(0.1, accel_limits[1])]  # TODO: make a separate lookup for jerk tuning
       accel_limits_turns = limit_accel_in_turns(v_ego, steering_angle, accel_limits, self.CP, angle_later)
 

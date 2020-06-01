@@ -150,6 +150,7 @@ class CarController():
       elif accel > 0 and CS.out.vEgo < 0.3:
         starting = 1
       apply_accel = interp(accel, BOSCH_ACCEL_LOOKUP_BP, BOSCH_ACCEL_LOOKUP_V)
+      print("%s: %s" %(str(apply_accel),str(CS.out.aEgo)))
       apply_gas = interp(accel, BOSCH_GAS_LOOKUP_BP, BOSCH_GAS_LOOKUP_V)
     else:
       apply_gas = clip(actuators.gas, 0., 1.)

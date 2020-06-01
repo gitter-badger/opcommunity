@@ -65,6 +65,7 @@ class PathPlanner():
     self.prev_one_blinker = False
     self.blindspotTrueCounterleft = 0
     self.blindspotTrueCounterright = 0
+    self.posenetValid = True
     self.op_params = opParams()
     self.alca_nudge_required = self.op_params.get('alca_nudge_required', default=True)
     self.alca_min_speed = self.op_params.get('alca_min_speed', default=20.0)
@@ -263,7 +264,8 @@ class PathPlanner():
     plan_send.pathPlan.mpcSolutionValid = bool(plan_solution_valid)
     plan_send.pathPlan.paramsValid = bool(sm['liveParameters'].valid)
     plan_send.pathPlan.sensorValid = bool(sm['liveParameters'].sensorValid)
-    plan_send.pathPlan.posenetValid = bool(sm['liveParameters'].posenetValid)
+    plan_send.pathPlan.posenetValid = bool(sm['liveParameters'].posenetValid) or self.posenetValid
+    self.posenetValid = bool(sm['liveParameters'].posenetValid)
 
     plan_send.pathPlan.desire = desire
     plan_send.pathPlan.laneChangeState = self.lane_change_state

@@ -35,7 +35,7 @@ class CarInterface(CarInterfaceBase):
     #else:
     ret.gasMaxBP = [0., 9., 55]
     ret.gasMaxV = [0.2, 0.5, 0.7]
-    ret.longitudinalTuning.kpV = [0.325, 0.325, 0.325]  # braking tune from rav4h
+    ret.longitudinalTuning.kpV = [0.4, 0.5, 0.325]  # braking tune from rav4h
     ret.longitudinalTuning.kiV = [0.15, 0.10]
 
     if candidate not in [CAR.PRIUS_2019, CAR.PRIUS, CAR.RAV4, CAR.RAV4H]: # These cars use LQR/INDI
@@ -87,8 +87,8 @@ class CarInterface(CarInterfaceBase):
 
       ret.lateralTuning.lqr.scale = 1500.0
       ret.lateralTuning.lqr.ki = 0.06
-      ret.longitudinalTuning.kpV = [0.325, 0.325, 0.325]  # braking tune
-      ret.longitudinalTuning.kiV = [0.15, 0.1]
+      ret.longitudinalTuning.kpV = [0.8, 1.0, 0.325]  # braking tune
+      ret.longitudinalTuning.kiV = [0.35, 0.1]
       ret.lateralTuning.lqr.a = [0., 1., -0.22619643, 1.21822268]
       ret.lateralTuning.lqr.b = [-1.92006585e-04, 3.95603032e-05]
       ret.lateralTuning.lqr.c = [1., 0.]
@@ -202,6 +202,8 @@ class CarInterface(CarInterfaceBase):
       ret.wheelbase = 2.68986
       ret.steerRatio = 14.3
       tire_stiffness_factor = 0.7933
+      ret.longitudinalTuning.kpV = [0.2, 0.25, 0.325]
+      ret.longitudinalTuning.kiV = [0.10, 0.10]
       ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.15], [0.05]]
       ret.mass = 3800. * CV.LB_TO_KG + STD_CARGO_KG
       ret.lateralTuning.pid.kf = 0.00004

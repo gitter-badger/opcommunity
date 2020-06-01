@@ -30,7 +30,10 @@ class CarInterfaceBase():
 
     self.CS = CarState(CP)
     self.cp = self.CS.get_can_parser(CP)
-    self.cp_init = self.CS.get_can_parser_init(CP)
+    try:
+      self.cp_init = self.CS.get_can_parser_init(CP)
+    except AttributeError:
+      self.cp_init = self.CS.get_can_parser(CP)
     self.cp_cam = self.CS.get_cam_can_parser(CP)
 
     self.CC = None

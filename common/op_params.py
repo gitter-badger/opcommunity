@@ -63,6 +63,7 @@ class opParams:
                                                       'description': 'True is stock behavior in this fork. False lets you use the brake and cruise control stalk to disengage as usual', 'live': False},
                            'limit_rsa': {'default': False, 'allowed_types': [bool], 'description': "Switch off RSA above rsa_max_speed", 'live': False},
                            'offset_limit': {'default': 0, 'allowed_types': [float, int], 'description': 'Speed at which apk percent offset will work in m/s', 'live': False},
+                           'mpc_offset': {'default': 5.0, 'allowed_types': [float, int], 'description': 'Offset model braking by how many m/s. Lower numbers equals more model braking', 'live': True},
                            'osm': {'default': True, 'allowed_types': [bool], 'description': 'Whether to use OSM for drives', 'live': False},
                            'rolling_stop': {'default': False, 'allowed_types': [bool], 'description': 'If you do not want stop signs to go down to 0 kph enable this for 9kph slow down', 'live': False},
                            'rsa_max_speed': {'default': 24.5, 'allowed_types': [float, int], 'description': 'Speed limit to ignore RSA in m/s', 'live': False},
