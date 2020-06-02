@@ -55,6 +55,13 @@ class RadarInterface(RadarInterfaceBase):
     self.trigger_msg = LAST_MSG
 
   def update(self, can_strings):
+    ret = car.RadarState.new_message()
+
+     # in non-giraffe models we are only steering for now, so sleep 0.05s to keep
+     # radard at 20Hz and return no points
+    time.sleep(0.05)
+    return ret
+
     vls = self.rcp.update_strings(can_strings)
     self.updated_messages.update(vls)
 
