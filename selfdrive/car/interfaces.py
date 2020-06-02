@@ -125,9 +125,9 @@ class CarInterfaceBase():
       events.append(create_event('pedalPressed', [ET.PRE_ENABLE]))
 
     # TODO: move this stuff to the capnp strut
-    if getattr(self.CS, "steer_error", False):
+    if getattr(self.CS, "steerError", False):
       events.append(create_event('steerUnavailable', [ET.NO_ENTRY, ET.IMMEDIATE_DISABLE, ET.PERMANENT]))
-    elif getattr(self.CS, "steer_warning", False):
+    elif getattr(self.CS, "steerWarning", False):
       events.append(create_event('steerTempUnavailable', [ET.NO_ENTRY, ET.WARNING]))
 
     # Disable on rising edge of gas or brake. Also disable on brake when speed > 0.

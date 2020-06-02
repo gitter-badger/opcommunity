@@ -29,7 +29,7 @@ class CarState(CarStateBase):
     ret.genericToggle = bool(cp.vl["Steering_Buttons"]["Dist_Incr"])
     # TODO: we also need raw driver torque, needed for Assisted Lane Change
     self.lkas_state = cp.vl["Lane_Keep_Assist_Status"]['LaActAvail_D_Actl']
-    self.steer_error = cp.vl["Lane_Keep_Assist_Status"]['LaActDeny_B_Actl']
+    self.steerError = cp.vl["Lane_Keep_Assist_Status"]['LaActDeny_B_Actl']
 
     return ret
 
