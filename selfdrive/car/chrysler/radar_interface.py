@@ -44,7 +44,8 @@ def _address_to_track(address):
     return (address - RADAR_MSGS_C[0]) // 2
   if address in RADAR_MSGS_D:
     return (address - RADAR_MSGS_D[0]) // 2
-  raise ValueError("radar received unexpected address %d" % address)
+  return -1
+  #raise ValueError("radar received unexpected address %d" % address)
 
 class RadarInterface(RadarInterfaceBase):
   def __init__(self, CP):
@@ -55,13 +56,6 @@ class RadarInterface(RadarInterfaceBase):
     self.trigger_msg = LAST_MSG
 
   def update(self, can_strings):
-    ret = car.RadarState.new_message()
-
-     # in non-giraffe models we are only steering for now, so sleep 0.05s to keep
-     # radard at 20Hz and return no points
-    time.sleep(0.05)
-    return ret
-
     vls = self.rcp.update_strings(can_strings)
     self.updated_messages.update(vls)
 
@@ -70,14 +64,16 @@ class RadarInterface(RadarInterfaceBase):
 
     ret = car.RadarData.new_message()
     errors = []
-    if not self.rcp.can_valid:
-      errors.append("canError")
+    # if not self.rcp.can_valid:
+    #   errors.append("canError")
     ret.errors = errors
 
     for ii in self.updated_messages:  # ii should be the message ID as a number
       cpt = self.rcp.vl[ii]
       trackId = _address_to_track(ii)
-
+      if trackId < 0:
+        continue
+        
       if trackId not in self.pts:
         self.pts[trackId] = car.RadarData.RadarPoint.new_message()
         self.pts[trackId].trackId = trackId
