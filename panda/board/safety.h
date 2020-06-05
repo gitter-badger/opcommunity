@@ -291,7 +291,7 @@ bool dist_to_meas_check(int val, int val_last, struct sample_t *val_meas,
   // if we've exceeded the meas val, we must start moving toward 0
   int highest_allowed = MIN(highest_allowed_rl, MAX(val_last - MAX_RATE_DOWN, MAX(val_meas->max, 0) + MAX_ERROR));
   int lowest_allowed = MAX(lowest_allowed_rl, MIN(val_last + MAX_RATE_DOWN, MIN(val_meas->min, 0) - MAX_ERROR));
-
+x
   // check for violation
   return (val < lowest_allowed) || (val > highest_allowed);
 }
