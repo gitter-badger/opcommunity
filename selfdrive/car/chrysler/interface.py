@@ -85,7 +85,7 @@ class CarInterface(CarInterfaceBase):
     self.cp_cam.update_strings(can_strings)
     self.tfcp.update_string(can_strings)
 
-    ret = self.CS.update(self.cp, self.cp_cam)
+    ret = self.CS.update(self.cp, self.cp_cam, self.tfcp)
     ret_arne182 = arne182.CarStateArne182.new_message()
 
     ret.canValid = self.cp.can_valid and self.cp_cam.can_valid

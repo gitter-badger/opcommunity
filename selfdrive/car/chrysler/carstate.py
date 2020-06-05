@@ -13,7 +13,7 @@ class CarState(CarStateBase):
     can_define = CANDefine(DBC[CP.carFingerprint]['pt'])
     self.shifter_values = can_define.dv["GEAR"]['PRNDL']
 
-  def update(self, cp, cp_cam):
+  def update(self, cp, cp_cam, tfcp):
 
     ret = car.CarState.new_message()
 
@@ -59,6 +59,10 @@ class CarState(CarStateBase):
 
     ret.genericToggle = bool(cp.vl["STEERING_LEVERS"]['HIGH_BEAM_FLASH'])
 
+    self.tf = {
+      'ctrlrq': tfcp.vl["TF_CONTROL_ANNOUNCEMENT"]["CTRL_ID"]
+    }
+    
     self.lkas_counter = cp_cam.vl["LKAS_COMMAND"]['COUNTER']
     self.lkas_car_model = cp_cam.vl["LKAS_HUD"]['CAR_MODEL']
     self.lkas_status_ok = cp_cam.vl["LKAS_HEARTBIT"]['LKAS_STATUS_OK']

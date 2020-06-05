@@ -89,10 +89,10 @@ def create_tf_control_command(packer, ctrlid, gas, brake):
   }
 
   if brake > 0.0:
-    values["LONG_CTRL_VALUE"] = brake
+    values["LONG_CTRL_VALUE"] = brake * 1000.0
     values["LONG_CTRL_METHOD"] = 4  #brake control mag
   elif gas > 0.0:
-    values["LONG_CTRL_VALUE"] = gas
+    values["LONG_CTRL_VALUE"] = gas * 1000.0
     values["LONG_CTRL_METHOD"] = 1  #gas control mag
 
   return packer.make_can_msg("TF_CONTROL_REQUEST", 0, values)

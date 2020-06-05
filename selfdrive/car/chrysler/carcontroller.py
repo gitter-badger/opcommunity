@@ -49,10 +49,10 @@ class CarController():
 
     #*** control msgs ***
 
-    if CS.out.trafficflow:
-        tfmsg = create_tf_control_command(self.tfpacker, actuators.gas, actuators.brake)
+    if CS.out.trafficflow and CS.tf.ctrlid is not None:
+        tfmsg = create_tf_control_command(self.tfpacker, CS.tf.ctrlid, actuators.gas, actuators.brake)
         can_sends.append(tfmsg)
-        
+
     if pcm_cancel_cmd:
       # TODO: would be better to start from frame_2b3
       new_msg = create_wheel_buttons(self.ccframe)
