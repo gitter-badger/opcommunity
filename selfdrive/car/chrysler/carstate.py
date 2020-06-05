@@ -1,3 +1,4 @@
+import os
 from cereal import car
 from opendbc.can.parser import CANParser
 from opendbc.can.can_define import CANDefine
@@ -62,12 +63,28 @@ class CarState(CarStateBase):
     self.lkas_car_model = cp_cam.vl["LKAS_HUD"]['CAR_MODEL']
     self.lkas_status_ok = cp_cam.vl["LKAS_HEARTBIT"]['LKAS_STATUS_OK']
 
+    self.prev_cruise_buttons = self.cruise_buttons
+    self.cruise_buttons = {
+      'cancel': cp.vl["WHEEL_BUTTONS"]['ACC_CANCEL'],
+      'speed_increase': cp.vl["WHEEL_BUTTONS"]['ACC_SPEED_INC'],
+      'speed_decrease': cp.vl["WHEEL_BUTTONS"]['ACC_SPEED_DEC'],
+      'resume': cp.vl["WHEEL_BUTTONS"]['ACC_RESUME'],
+      'follow_increase': cp.vl["WHEEL_BUTTONS"]['ACC_FOLLOW_INC'],
+      'follow_decrease': cp.vl["WHEEL_BUTTONS"]['ACC_FOLLOW_DEC'],
+    }
+
     return ret
 
   @staticmethod
   def get_can_parser(CP):
     signals = [
       # sig_name, sig_address, default
+      {"WHEEL_BUTTONS", "ACC_CANCEL", 0},
+      {"WHEEL_BUTTONS", "ACC_SPEED_INC", 0},
+      {"WHEEL_BUTTONS", "ACC_SPEED_DEC", 0},
+      {"WHEEL_BUTTONS", "ACC_FOLLOW_INC", 0},
+      {"WHEEL_BUTTONS", "ACC_RESUME", 0},
+      {"WHEEL_BUTTONS", "ACC_FOLLOW_DEC", 0},
       ("PRNDL", "GEAR", 0),
       ("DOOR_OPEN_FL", "DOORS", 0),
       ("DOOR_OPEN_FR", "DOORS", 0),
@@ -119,3 +136,26 @@ class CarState(CarStateBase):
     checks = []
 
     return CANParser(DBC[CP.carFingerprint]['pt'], signals, checks, 2)
+
+  @staticmethod
+  def create_tf_can_parser():
+    dbc_f = 'trafficflow.dbc'
+    # list of [(signal name, message name or number, initial values), (...)]
+    # [('RADAR_STATE', 1024, 0),
+    #  ('LONG_DIST', 1072, 255),
+    #  ('LONG_DIST', 1073, 255),
+    #  ('LONG_DIST', 1074, 255),
+    #  ('LONG_DIST', 1075, 255),
+
+    signals = [
+      # sig_name, sig_address, default
+      ("TF_CONTROL_ANNOUNCEMENT", "LAT_CTRL_STATUS", 0),
+      ("TF_CONTROL_ANNOUNCEMENT", "LONG_CTRL_STATUS", 0),
+      ("TF_CONTROL_ANNOUNCEMENT", "CTRL_ID", 0),
+    ]
+
+    checks = [
+
+    ]
+
+    return CANParser(os.path.splitext(dbc_f)[0], signals, checks, 0)

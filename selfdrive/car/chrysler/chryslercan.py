@@ -80,6 +80,23 @@ def create_lkas_command(packer, apply_steer, moving_fast, frame):
   values["CHECKSUM"] = checksum
   return packer.make_can_msg("LKAS_COMMAND", 0, values)
 
+def create_tf_control_command(packer, ctrlid, gas, brake):
+  # LKAS_COMMAND 0x292 (658) Lane-keeping signal to turn the wheel.
+  values = {
+    "CTRL_REQ_ID": ctrlid,
+    "LAT_CTRL_METHOD": 0,
+    "LONG_CTRL_VALUE": 0
+  }
+
+  if brake > 0.0:
+    values["LONG_CTRL_VALUE"] = brake
+    values["LONG_CTRL_METHOD"] = 4  #brake control mag
+  elif gas > 0.0:
+    values["LONG_CTRL_VALUE"] = gas
+    values["LONG_CTRL_METHOD"] = 1  #gas control mag
+
+  return packer.make_can_msg("TF_CONTROL_REQUEST", 0, values)
+
 
 def create_wheel_buttons(frame):
   # WHEEL_BUTTONS (571) Message sent to cancel ACC.

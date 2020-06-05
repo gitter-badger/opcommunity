@@ -1,6 +1,6 @@
 from selfdrive.car import apply_toyota_steer_torque_limits
 from selfdrive.car.chrysler.chryslercan import create_lkas_hud, create_lkas_command, \
-                                               create_wheel_buttons
+                                               create_wheel_buttons, create_tf_control_command
 from selfdrive.car.chrysler.values import CAR, SteerLimitParams
 from opendbc.can.packer import CANPacker
 
@@ -16,6 +16,7 @@ class CarController():
     self.steer_rate_limited = False
 
     self.packer = CANPacker(dbc_name)
+    self.tfpacker = CANPacker('trafficflow')
 
 
   def update(self, enabled, CS, actuators, pcm_cancel_cmd, hud_alert):
@@ -48,6 +49,10 @@ class CarController():
 
     #*** control msgs ***
 
+    if CS.out.trafficflow:
+        tfmsg = create_tf_control_command(self.tfpacker, actuators.gas, actuators.brake)
+        can_sends.append(tfmsg)
+        
     if pcm_cancel_cmd:
       # TODO: would be better to start from frame_2b3
       new_msg = create_wheel_buttons(self.ccframe)

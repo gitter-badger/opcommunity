@@ -6,7 +6,13 @@ from selfdrive.car.chrysler.values import Ecu, ECU_FINGERPRINT, CAR, FINGERPRINT
 from selfdrive.car import STD_CARGO_KG, scale_rot_inertia, scale_tire_stiffness, is_ecu_disconnected, gen_empty_fingerprint
 from selfdrive.car.interfaces import CarInterfaceBase
 
+ButtonType = car.CarState.ButtonEvent.Type
+
+
 class CarInterface(CarInterfaceBase):
+  def __init__(self, CP, CarController, CarState):
+    super().__init__(CP, CarController, CarState)
+    self.tfcp = CP.create_tf_can_parser()
 
   @staticmethod
   def compute_gb(accel, speed):
@@ -37,11 +43,21 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatio = 12.7
       ret.steerActuatorDelay = 0.2  # in seconds
 
-    if candidate in (CAR.CHRYSLER_300_2018):
+    if candidate in (CAR.CHRYSLER_300_2018, CAR.CHRYSLER_300_2018_TRAFFICFLOW):
       ret.wheelbase = 3.05308 # in meters
       ret.steerRatio = 15.5 # 2013 V-6 (RWD) — 15.5:1 V-6 (AWD) — 16.5:1 V-8 (RWD) — 15.5:1 V-8 (AWD) — 16.5:1
       ret.mass = 1828.0 + STD_CARGO_KG # 2013 V-6 RWD
       ret.lateralTuning.pid.kf = 0.00005584521385   # full torque for 10 deg at 80mph means 0.00007818594
+
+    if candidate in (CAR.CHRYSLER_300_2018_TRAFFICFLOW):
+      ret.trafficflow = True
+
+    if ret.trafficflow:
+      ret.openpilotLongitudinalControl = True
+      ret.longitudinalTuning.kpBP = [0., 5., 35.]
+      ret.longitudinalTuning.kpV = [3.6, 2.4, 1.5]
+      ret.longitudinalTuning.kiBP = [0., 35.]
+      ret.longitudinalTuning.kiV = [0.54, 0.36]
 
     ret.centerToFront = ret.wheelbase * 0.44
 
@@ -67,6 +83,7 @@ class CarInterface(CarInterfaceBase):
     # ******************* do can recv *******************
     self.cp.update_strings(can_strings)
     self.cp_cam.update_strings(can_strings)
+    self.tfcp.update_string(can_strings)
 
     ret = self.CS.update(self.cp, self.cp_cam)
     ret_arne182 = arne182.CarStateArne182.new_message()
@@ -78,6 +95,33 @@ class CarInterface(CarInterfaceBase):
     ret.steeringRateLimited = self.CC.steer_rate_limited if self.CC is not None else False
 
     ret.buttonEvents = []
+      # unknown @0;
+      # leftBlinker @1;
+      # rightBlinker @2;
+      # accelCruise @3;
+      # decelCruise @4;
+      # cancel @5;
+      # altButton1 @6;
+      # altButton2 @7;
+      # altButton3 @8;
+      # setCruise @9;
+      # resumeCruise @10;
+      # gapAdjustCruise @11;
+
+    if self.CS.cruise_buttons != self.CS.prev_cruise_buttons:
+      be = car.CarState.ButtonEvent.new_message()
+      if not self.CS.cruise_buttons.cancel and self.CS.prev_cruise_buttons.cancel:
+        be.type = ButtonType.cancel
+      elif not self.CS.cruise_buttons.resume and self.CS.prev_cruise_buttons.resume: 
+        be.type = ButtonType.resumeCruise
+      elif not self.CS.cruise_buttons.speed_decrease and self.CS.prev_cruise_buttons.speed_decrease: 
+        be.type = ButtonType.decelCruise
+      elif not self.CS.cruise_buttons.speed_increase and self.CS.prev_cruise_buttons.speed_increase: 
+        be.type = ButtonType.accelCruise
+      else:
+        be.type = ButtonType.unknown
+
+      ret.buttonEvents.append(be)
 
     # events
     events, ret_arne182.events = self.create_common_events(ret, extra_gears=[car.CarState.GearShifter.low], gas_resume_speed = 2.)
@@ -103,3 +147,4 @@ class CarInterface(CarInterfaceBase):
     can_sends = self.CC.update(c.enabled, self.CS, c.actuators, c.cruiseControl.cancel, c.hudControl.visualAlert)
 
     return can_sends
+
