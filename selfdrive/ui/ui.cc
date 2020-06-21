@@ -17,13 +17,10 @@
 #include "common/utilpp.h"
 #include "ui.hpp"
 
-static int last_brightness = -1;
-static void set_brightness(UIState *s, int brightness) {
+static void ui_set_brightness(UIState *s, int brightness) {
+  static int last_brightness = -1;
   if (last_brightness != brightness && (s->awake || brightness == 0)) {
-    FILE *f = fopen("/sys/class/leds/lcd-backlight/brightness", "wb");
-    if (f != NULL) {
-      fprintf(f, "%d", brightness);
-      fclose(f);
+    if (set_brightness(brightness)) {
       last_brightness = brightness;
     }
   }
@@ -56,7 +53,7 @@ static void set_awake(UIState *s, bool awake) {
       enable_event_processing(true);
     } else {
       LOGW("awake off");
-      set_brightness(s, 0);
+      ui_set_brightness(s, 0);
       framebuffer_set_power(s->fb, HWC_POWER_MODE_OFF);
       enable_event_processing(false);
     }
@@ -311,16 +308,12 @@ void handle_message(UIState *s, SubMaster &sm) {
     if (!scene.frontview){ s->controls_seen = true; }
 
     auto alert_sound = scene.controls_state.getAlertSound();
-    const auto sound_none = cereal::CarControl::HUDControl::AudibleAlert::NONE;
-    if (alert_sound != s->alert_sound){
-      if (s->alert_sound != sound_none){
-        stop_alert_sound(s->alert_sound);
+    if (alert_sound != s->sound.currentPlaying()) {
+      if (alert_sound == AudibleAlert::NONE) {
+        s->sound.stop();
+      } else {
+        s->sound.play(alert_sound);
       }
-      if (alert_sound != sound_none){
-        play_alert_sound(alert_sound);
-        s->alert_type = scene.controls_state.getAlertType();
-      }
-      s->alert_sound = alert_sound;
     }
     scene.alert_text1 = scene.controls_state.getAlertText1();
     scene.alert_text2 = scene.controls_state.getAlertText2();
@@ -409,15 +402,21 @@ void handle_message(UIState *s, SubMaster &sm) {
     s->preview_started = data.getIsPreview();
   }
 
-  s->started = scene.thermal.getStarted() || s->preview_started ;
+  s->started = scene.thermal.getStarted() || s->preview_started;
   // Handle onroad/offroad transition
   if (!s->started) {
     if (s->status != STATUS_STOPPED) {
       update_status(s, STATUS_STOPPED);
-      s->alert_sound_timeout = 0;
       s->vision_seen = false;
       s->controls_seen = false;
       s->active_app = cereal::UiLayoutState::App::HOME;
+
+      #ifndef QCOM
+      // disconnect from visionipc on PC
+      close(s->ipc_fd);
+      s->ipc_fd = -1;
+      #endif
+
       update_offroad_layout_state(s);
     }
   } else if (s->status == STATUS_STOPPED) {
@@ -511,14 +510,21 @@ static void ui_update(UIState *s) {
 
     s->vision_connect_firstrun = false;
 
+    s->controls_timeout = 6 * UI_FREQ;
     s->alert_blinking_alpha = 1.0;
     s->alert_blinked = false;
   }
 
   zmq_pollitem_t polls[1] = {{0}};
   // Take an rgb image from visiond if there is one
+  assert(s->ipc_fd >= 0);
   while(true) {
-    assert(s->ipc_fd >= 0);
+    if (s->ipc_fd < 0) {
+      // TODO: rethink this, for now it should only trigger on PC
+      LOGW("vision disconnected by other thread");
+      s->vision_connected = false;
+      return;
+    }
     polls[0].fd = s->ipc_fd;
     polls[0].events = ZMQ_POLLIN;
     #ifdef UI_60FPS
@@ -744,7 +750,6 @@ int main(int argc, char* argv[]) {
   TouchState touch = {0};
   touch_init(&touch);
   s->touch_fd = touch.fd;
-  ui_sound_init();
 
   // light sensor scaling params
   const bool LEON = util::read_file("/proc/cmdline").find("letv") != std::string::npos;
@@ -764,9 +769,8 @@ int main(int argc, char* argv[]) {
 
   const int MIN_VOLUME = LEON ? 12 : 9;
   const int MAX_VOLUME = LEON ? 15 : 12;
+  assert(s->sound.init(MIN_VOLUME));
 
-  set_volume(MIN_VOLUME);
-  s->volume_timeout = 5 * UI_FREQ;
   int draws = 0;
 
   s->scene.satelliteCount = -1;
@@ -788,7 +792,7 @@ int main(int argc, char* argv[]) {
     if (clipped_brightness > 512) clipped_brightness = 512;
     smooth_brightness = clipped_brightness * 0.01 + smooth_brightness * 0.99;
     if (smooth_brightness > 255) smooth_brightness = 255;
-    set_brightness(s, (int)smooth_brightness);
+    ui_set_brightness(s, (int)smooth_brightness);
 
     // resize vision for collapsing sidebar
     const bool hasSidebar = !s->scene.uilayout_sidebarcollapsed;
@@ -848,42 +852,32 @@ int main(int argc, char* argv[]) {
       should_swap = true;
     }
 
-    if (s->volume_timeout > 0) {
-      s->volume_timeout--;
-    } else {
-      int volume = fmin(MAX_VOLUME, MIN_VOLUME + s->scene.controls_state.getVEgo() / 5);  // up one notch every 5 m/s
-      set_volume(volume);
-      s->volume_timeout = 5 * UI_FREQ;
-    }
+    s->sound.setVolume(fmin(MAX_VOLUME, MIN_VOLUME + s->scene.controls_state.getVEgo() / 5), 5); // up one notch every 5 m/s
 
-    // If car is started and controlsState times out, display an alert
     if (s->controls_timeout > 0) {
       s->controls_timeout--;
-    } else {
-      if (s->started && s->controls_seen && s->scene.alert_text2 != "Controls Unresponsive") {
+    } else if (s->started) {
+      if (!s->controls_seen) {
+        // car is started, but controlsState hasn't been seen at all
+        LOGE("Controls failed to start");
+        s->scene.alert_text1 = "openpilot Unavailable";
+        s->scene.alert_text2 = "Controls Failed to Start";
+        s->scene.alert_size = cereal::ControlsState::AlertSize::MID;
+        update_status(s, STATUS_WARNING);
+      } else {
+        // car is started, but controls is lagging or died
         LOGE("Controls unresponsive");
-        s->scene.alert_size = cereal::ControlsState::AlertSize::FULL;
-        update_status(s, STATUS_ALERT);
+
+        if (s->scene.alert_text2 != "Controls Unresponsive") {
+          s->sound.play(AudibleAlert::CHIME_WARNING_REPEAT, 3); // loop sound 3 times
+        }
 
         s->scene.alert_text1 = "TAKE CONTROL IMMEDIATELY";
         s->scene.alert_text2 = "Controls Unresponsive";
-
-        ui_draw_vision_alert(s, s->scene.alert_size, s->status, s->scene.alert_text1.c_str(), s->scene.alert_text2.c_str());
-
-        s->alert_sound_timeout = 2 * UI_FREQ;
-        s->alert_sound = cereal::CarControl::HUDControl::AudibleAlert::CHIME_WARNING_REPEAT;
-        play_alert_sound(s->alert_sound);
+        s->scene.alert_size = cereal::ControlsState::AlertSize::FULL;
+        update_status(s, STATUS_ALERT);
       }
-
-      s->alert_sound_timeout--;
-      s->controls_seen = false;
-    }
-
-    // stop playing alert sound
-    if ((!s->started || (s->started && s->alert_sound_timeout == 0)) &&
-        s->alert_sound != cereal::CarControl::HUDControl::AudibleAlert::NONE) {
-      stop_alert_sound(s->alert_sound);
-      s->alert_sound = cereal::CarControl::HUDControl::AudibleAlert::NONE;
+      ui_draw_vision_alert(s, s->scene.alert_size, s->status, s->scene.alert_text1.c_str(), s->scene.alert_text2.c_str());
     }
 
     read_param_timeout(&s->is_metric, "IsMetric", &s->is_metric_timeout);
@@ -918,7 +912,6 @@ int main(int argc, char* argv[]) {
   }
 
   set_awake(s, true);
-  ui_sound_destroy();
 
   // wake up bg thread to exit
   pthread_mutex_lock(&s->lock);

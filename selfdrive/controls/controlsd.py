@@ -2,6 +2,7 @@
 import os
 import gc
 from cereal import car, log
+from common.android import ANDROID
 from common.numpy_fast import clip
 from common.realtime import sec_since_boot, set_realtime_priority, set_core_affinity, Ratekeeper, DT_CTRL
 from common.profiler import Profiler
@@ -35,6 +36,7 @@ Desire = log.PathPlan.Desire
 LaneChangeState = log.PathPlan.LaneChangeState
 LaneChangeDirection = log.PathPlan.LaneChangeDirection
 EventName = car.CarEvent.EventName
+
 
 class Controls:
   def __init__(self, sm=None, pm=None, can_sock=None):
@@ -77,7 +79,7 @@ class Controls:
               internet_needed or not openpilot_enabled_toggle
 
     # detect sound card presence and ensure successful init
-    sounds_available = (not os.path.isfile('/EON') or (os.path.isfile('/proc/asound/card0/state') and
+    sounds_available = (not ANDROID or (os.path.isfile('/proc/asound/card0/state') and
                         open('/proc/asound/card0/state').read().strip() == 'ONLINE'))
 
     car_recognized = self.CP.carName != 'mock'
@@ -118,11 +120,11 @@ class Controls:
     self.v_cruise_kph_last = 0
     self.mismatch_counter = 0
     self.can_error_counter = 0
-    self.consecutive_can_error_count = 0
     self.last_blinker_frame = 0
     self.saturated_count = 0
+    self.distance_traveled = 0
     self.events_prev = []
-    self.current_alert_types = []
+    self.current_alert_types = [ET.PERMANENT]
 
     self.sm['liveCalibration'].calStatus = Calibration.INVALID
     self.sm['thermal'].freeSpace = 1.
@@ -130,7 +132,7 @@ class Controls:
     self.sm['dMonitoringState'].awarenessStatus = 1.
     self.sm['dMonitoringState'].faceDetected = False
 
-    self.startup_event = get_startup_event(car_recognized, controller_available, hw_type)
+    self.startup_event = get_startup_event(car_recognized, controller_available)
 
     if not sounds_available:
       self.events.add(EventName.soundsUnavailable, static=True)
@@ -191,11 +193,6 @@ class Controls:
 
     if self.can_rcv_error or (not CS.canValid and self.sm.frame > 5 / DT_CTRL):
       self.events.add(EventName.canError)
-      self.consecutive_can_error_count += 1
-    else:
-      self.consecutive_can_error_count = 0
-    if self.consecutive_can_error_count > 2 / DT_CTRL:
-      self.events.add(EventName.canErrorPersistent)
     if self.mismatch_counter >= 200:
       self.events.add(EventName.controlsMismatch)
     if not self.sm.alive['plan'] and self.sm.alive['pathPlan']:
@@ -208,6 +205,9 @@ class Controls:
     if not self.sm['liveLocationKalman'].inputsOK and os.getenv("NOSENSOR") is None:
       if self.sm.frame > 5 / DT_CTRL:  # Give locationd some time to receive all the inputs
         self.events.add(EventName.sensorDataInvalid)
+    if not self.sm['liveLocationKalman'].gpsOK and (self.distance_traveled > 1000) and os.getenv("NOSENSOR") is None:
+      # Not show in first 1 km to allow for driving out of garage. This event shows after 5 minutes
+      self.events.add(EventName.noGps)
     if not self.sm['pathPlan'].paramsValid:
       self.events.add(EventName.vehicleModelInvalid)
     if not self.sm['liveLocationKalman'].posenetOK:
@@ -251,6 +251,8 @@ class Controls:
 
     if not self.sm['health'].controlsAllowed and self.enabled:
       self.mismatch_counter += 1
+
+    self.distance_traveled += CS.vEgo * DT_CTRL
 
     return CS
 
