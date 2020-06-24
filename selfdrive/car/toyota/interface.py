@@ -37,7 +37,7 @@ class CarInterface(CarInterfaceBase):
     else:
       ret.gasMaxBP = [0., 9., 55]
       ret.gasMaxV = [0.2, 0.5, 0.7]
-      ret.longitudinalTuning.kpV = [0.37, 0.35, 0.325]  # braking tune from rav4h
+      ret.longitudinalTuning.kpV = [0.39, 0.35, 0.325]  # braking tune from rav4h
       ret.longitudinalTuning.kiV = [0.19, 0.10]
 
     if candidate not in [CAR.PRIUS_2019, CAR.PRIUS, CAR.RAV4, CAR.RAV4H, CAR.COROLLA]: # These cars use LQR/INDI
