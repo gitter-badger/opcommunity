@@ -75,7 +75,7 @@ class Events:
             alert = alert(*callback_args)
 
           if DT_CTRL * (self.events_prev[e] + 1) >= alert.creation_delay:
-            alert.alert_type = EVENT_NAME[e]
+            alert.alert_type = f"{EVENT_NAME[e]}/{et}"
             ret.append(alert)
     return ret
 
@@ -199,16 +199,10 @@ def wrong_car_mode_alert(CP, sm, metric):
   text = "Cruise Mode Disabled"
   if CP.carName == "honda":
     text = "Main Switch Off"
-  return NoEntryAlert(text, duration_hud_alert=0.),
+  return NoEntryAlert(text, duration_hud_alert=0.)
 
 EVENTS = {
   # ********** events with no alerts **********
-
-  EventName.gasPressed: {ET.PRE_ENABLE: None},
-
-  EventName.laneChangeBlocked: {},
-
-  EventName.focusRecoverActive: {},
 
   # ********** events only containing alerts displayed in all states **********
 
@@ -337,6 +331,14 @@ EVENTS = {
 
   # ********** events only containing alerts that display while engaged **********
 
+  EventName.gasPressed: {
+    ET.PRE_ENABLE: Alert(
+      "openpilot will not brake while gas pressed",
+      "",
+      AlertStatus.normal, AlertSize.small,
+      Priority.LOWEST, VisualAlert.none, AudibleAlert.none, .0, .0, .1),
+  },
+
   EventName.vehicleModelInvalid: {
     ET.WARNING: Alert(
       "Vehicle Parameter Identification Failed",
@@ -445,6 +447,14 @@ EVENTS = {
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, .0, .1, .1, alert_rate=0.75),
   },
 
+  EventName.laneChangeBlocked: {
+    ET.WARNING: Alert(
+      "Car Detected in Blindspot",
+      "Monitor Other Vehicles",
+      AlertStatus.normal, AlertSize.mid,
+      Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, .0, .1, .1),
+  },
+
   EventName.laneChange: {
     ET.WARNING: Alert(
       "Changing Lane",
@@ -522,6 +532,14 @@ EVENTS = {
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.chimeWarning1, .4, 2., 3.),
     ET.NO_ENTRY: NoEntryAlert("Vision Model Output Uncertain"),
+  },
+
+  EventName.focusRecoverActive: {
+    ET.WARNING: Alert(
+      "TAKE CONTROL",
+      "Attempting Refocus: Camera Focus Invalid",
+      AlertStatus.userPrompt, AlertSize.mid,
+      Priority.LOW, VisualAlert.steerRequired, AudibleAlert.chimeWarning1, .4, 2., 3.),
   },
 
   EventName.outOfSpace: {
