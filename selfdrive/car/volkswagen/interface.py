@@ -74,11 +74,12 @@ class CarInterface(CarInterfaceBase):
     ret.steerRatio = 15.6
     ret.steerRatioRear = 0.
 
-    ret.lateralTuning.pid.kf = 0.00006
     ret.lateralTuning.pid.kpBP = [0.]
     ret.lateralTuning.pid.kiBP = [0.]
+    ret.lateralTuning.pid.kfBP = [0.]
     ret.lateralTuning.pid.kpV = [0.6]
     ret.lateralTuning.pid.kiV = [0.2]
+    ret.lateralTuning.pid.kfV = [0.00006]
 
     ret.enableCamera = True # Stock camera detection doesn't apply to VW
     ret.transmissionType = car.CarParams.TransmissionType.automatic

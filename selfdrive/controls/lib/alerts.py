@@ -103,8 +103,8 @@ ALERTS = [
 
   Alert(
       "longControlDisabled",
-      "BRAKE PRESSED",
-      "Longitudinal Control Disabled",
+      "Steer Assist Active",
+      "Brake Pressed Acceleration Disabled",
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .4, 2., 0.2),
 
@@ -187,8 +187,8 @@ ALERTS = [
 
   Alert(
       "driverMonitorLowAcc",
-      "CHECK DRIVER FACE VISIBILITY",
-      "Driver Monitor Model Output Uncertain",
+      "Driver Monitor Uncertain",
+      "Please look foward",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, .4, 0., 1.),
 
@@ -282,15 +282,15 @@ ALERTS = [
       Priority.LOW, VisualAlert.none, AudibleAlert.none, .1, .1, .1),
   Alert(
       "preLaneChangeLeft",
-      "Steer Left to Start Lane Change",
-      "Monitor Other Vehicles",
+      "Checking Blind Spots",
+      "Monitor other vehicles left lane change initiated",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, .0, .1, .1, alert_rate=0.75),
 
   Alert(
       "preLaneChangeRight",
-      "Steer Right to Start Lane Change",
-      "Monitor Other Vehicles",
+      "Checking Blind Spots",
+      "Monitor other vehicles right lane change initiated",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.none, .0, .1, .1, alert_rate=0.75),
 
@@ -304,7 +304,7 @@ ALERTS = [
   Alert(
       "posenetInvalid",
       "TAKE CONTROL",
-      "Vision Model Output Uncertain",
+      "Camera blocked or Device too hot!",
       AlertStatus.userPrompt, AlertSize.mid,
       Priority.LOW, VisualAlert.steerRequired, AudibleAlert.chimeWarning1, .4, 2., 3.),
 
@@ -695,7 +695,7 @@ ALERTS = [
   Alert(
       "posenetInvalidNoEntry",
       "openpilot Unavailable",
-      "Vision Model Output Uncertain",
+      "Camera blocked or Device too hot!",
       AlertStatus.normal, AlertSize.mid,
       Priority.LOW, VisualAlert.none, AudibleAlert.chimeError, .4, 2., 3.),
 

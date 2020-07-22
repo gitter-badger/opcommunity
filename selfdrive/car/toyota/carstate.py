@@ -279,9 +279,9 @@ class CarState(CarStateBase):
     self.steer_state = cp.vl["EPS_STATUS"]['LKA_STATE']
     self.steer_warning = cp.vl["EPS_STATUS"]['LKA_STATE'] not in [1, 5]
     ret.cruiseState.speed = ret.cruiseState.speed * CV.KPH_TO_MS
-    self.barriers = cp_cam.vl["LKAS_HUD"]['BARRIERS']
-    self.rightline = cp_cam.vl["LKAS_HUD"]['RIGHT_LINE']
-    self.leftline = cp_cam.vl["LKAS_HUD"]['LEFT_LINE']
+    #self.barriers = cp_cam.vl["LKAS_HUD"]['BARRIERS']
+    #self.rightline = cp_cam.vl["LKAS_HUD"]['RIGHT_LINE']
+    #self.leftline = cp_cam.vl["LKAS_HUD"]['LEFT_LINE']
 
     self.tsgn1 = cp_cam.vl["RSA1"]['TSGN1']
     if self.spdval1 != cp_cam.vl["RSA1"]['SPDVAL1']:
@@ -290,7 +290,7 @@ class CarState(CarStateBase):
 
     self.splsgn1 = cp_cam.vl["RSA1"]['SPLSGN1']
     self.tsgn2 = cp_cam.vl["RSA1"]['TSGN2']
-    self.spdval2 = cp_cam.vl["RSA1"]['SPDVAL2']
+    #self.spdval2 = cp_cam.vl["RSA1"]['SPDVAL2']
 
     self.splsgn2 = cp_cam.vl["RSA1"]['SPLSGN2']
     self.tsgn3 = cp_cam.vl["RSA2"]['TSGN3']
@@ -298,7 +298,7 @@ class CarState(CarStateBase):
     self.tsgn4 = cp_cam.vl["RSA2"]['TSGN4']
     self.splsgn4 = cp_cam.vl["RSA2"]['SPLSGN4']
     self.noovertake = self.tsgn1 == 65 or self.tsgn2 == 65 or self.tsgn3 == 65 or self.tsgn4 == 65 or self.tsgn1 == 66 or self.tsgn2 == 66 or self.tsgn3 == 66 or self.tsgn4 == 66
-    if (self.spdval1 > 0 or self.spdval2 > 0) and not (self.spdval1 == 35 and self.tsgn1 == 1) and self.rsa_ignored_speed != self.spdval1:
+    if (self.spdval1 > 0) and not (self.spdval1 == 35 and self.tsgn1 == 1) and self.rsa_ignored_speed != self.spdval1:
       dat = messaging_arne.new_message('liveTrafficData')
       if self.spdval1 > 0:
         dat.liveTrafficData.speedLimitValid = True
@@ -310,11 +310,11 @@ class CarState(CarStateBase):
           dat.liveTrafficData.speedLimit = 0
       else:
         dat.liveTrafficData.speedLimitValid = False
-      if self.spdval2 > 0:
-        dat.liveTrafficData.speedAdvisoryValid = True
-        dat.liveTrafficData.speedAdvisory = self.spdval2
-      else:
-        dat.liveTrafficData.speedAdvisoryValid = False
+      #if self.spdval2 > 0:
+      #  dat.liveTrafficData.speedAdvisoryValid = True
+      #  dat.liveTrafficData.speedAdvisory = self.spdval2
+      #else:
+      dat.liveTrafficData.speedAdvisoryValid = False
       if limit_rsa and rsa_max_speed < ret.vEgo:
         dat.liveTrafficData.speedLimitValid = False
       if not travis:
@@ -443,9 +443,9 @@ class CarState(CarStateBase):
       ("BLINDSPOTSIDE","DEBUG",65),
       ("BLINDSPOTD1","DEBUG", 0),
       ("BLINDSPOTD2","DEBUG", 0),
-      ("ACC_DISTANCE", "JOEL_ID", 2),
-      ("LANE_WARNING", "JOEL_ID", 1),
-      ("ACC_SLOW", "JOEL_ID", 0),
+      #("ACC_DISTANCE", "JOEL_ID", 2),
+      #("LANE_WARNING", "JOEL_ID", 1),
+      #("ACC_SLOW", "JOEL_ID", 0),
       ("DISTANCE_LINES", "PCM_CRUISE_SM", 0),
     ]
 
@@ -495,15 +495,16 @@ class CarState(CarStateBase):
                ("SPDVAL1", "RSA1", 0),
                ("SPLSGN1", "RSA1", 0),
                ("TSGN2", "RSA1", 0),
-               ("SPDVAL2", "RSA1", 0),
+               #("SPDVAL2", "RSA1", 0),
                ("SPLSGN2", "RSA1", 0),
                ("TSGN3", "RSA2", 0),
                ("SPLSGN3", "RSA2", 0),
                ("TSGN4", "RSA2", 0),
                ("SPLSGN4", "RSA2", 0),
-               ("BARRIERS", "LKAS_HUD", 0),
-               ("RIGHT_LINE", "LKAS_HUD", 0),
-               ("LEFT_LINE", "LKAS_HUD", 0),]
+               #("BARRIERS", "LKAS_HUD", 0),
+               #("RIGHT_LINE", "LKAS_HUD", 0),
+               #("LEFT_LINE", "LKAS_HUD", 0),
+              ]
 
     # use steering message to check if panda is connected to frc
     checks = [("STEERING_LKA", 42)]

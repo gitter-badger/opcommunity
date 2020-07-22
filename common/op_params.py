@@ -63,6 +63,7 @@ class opParams:
                            'rsa_max_speed': {'default': 24.5, 'allowed_types': [float, int], 'description': 'Speed limit to ignore RSA in m/s', 'live': False},
                            'smart_speed': {'default': True, 'allowed_types': [bool], 'description': 'Whether to use Smart Speed for drives above smart_speed_max_vego', 'live': False},
                            'smart_speed_max_vego': {'default': 26.8, 'allowed_types': [float, int], 'description': 'Speed limit to ignore Smartspeed in m/s', 'live': False},
+                           'spairrowtuning': {'default': False, 'allowed_types': [bool], 'description': 'Better Tuning for Corolla', 'live': False},
                            'speed_offset': {'default': 0, 'allowed_types': [float, int], 'description': 'Speed limit offset in m/s', 'live': True},
                            'traffic_light_alerts': {'default': False, 'allowed_types': [bool], 'description': "Switch off the traffic light alerts", 'live': False},
                            'traffic_lights': {'default': True, 'allowed_types': [bool], 'description': "Should Openpilot stop for traffic lights", 'live': False},
