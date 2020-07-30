@@ -89,8 +89,8 @@ class LanePlanner():
     # Find current lanewidth
     self.lane_width_certainty += 0.05 * (self.l_prob * self.r_prob - self.lane_width_certainty)
     current_lane_width = abs(self.l_poly[3] - self.r_poly[3])
-    if not op_params.get('use_virutual_middle_line', False):
-      lane_width = self.lane_width
+    if op_params.get('use_virtual_middle_line', False) and v_ego < 14.15:
+      #lane_width = self.lane_width
       #print(current_lane_width)
       if current_lane_width < 2.0:
         self.r_poly[3] -= 2.0 - current_lane_width # TODO: this should be l_poly if isRHD

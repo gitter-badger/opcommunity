@@ -40,7 +40,7 @@ class opParams:
                            'alca_min_speed': {'default': 20, 'allowed_types': [float, int], 'description': 'Speed limit to start ALC in MPH', 'live': False},
                            'alca_nudge_required': {'default': False, 'allowed_types': [bool], 'description': "Require nudge to start ALC", 'live': False},
                            'camera_offset': {'default': 0.06, 'allowed_types': [float, int], 'description': 'Your camera offset to use in lane_planner.py', 'live': True},
-                           'curvature_factor': {'default': 1.0, 'allowed_types': [float, int], 'description': 'Multiplier for the curvature slowdown. Increase for less braking.', 'live': False},
+                           'curvature_factor': {'default': 1.2, 'allowed_types': [float, int], 'description': 'Multiplier for the curvature slowdown. Increase for less braking.', 'live': False},
                            'cloak': {'default': True, 'allowed_types': [bool], 'description': "make comma believe you are on their fork", 'live': False},
                            'default_brake_distance': {'default': 250.0, 'allowed_types': [float, int], 'description': 'Distance in m to start braking for mapped speeds.', 'live': False},
                            'dynamic_follow': {'default': 'auto', 'allowed_types': [str],
@@ -71,7 +71,7 @@ class opParams:
                            'use_car_caching': {'default': True, 'allowed_types': [bool], 'description': 'Whether to use fingerprint caching', 'live': False},
                            'min_TR': {'default': None, 'allowed_types': [type(None), float, int], 'description': 'The minimum allowed following distance in seconds. Default is 0.9 seconds.\n'
                                                                                                                  'The range is limited from 0.85 to 1.3. Set to None to disable', 'live': True},
-                           'use_virutual_middle_line ': {'default': False, 'allowed_types': [bool], 'description': 'For roads over 4m wide, hug right. For roads under 2m wide, hug left.', 'live': False},
+                           'use_virtual_middle_line': {'default': False, 'allowed_types': [bool], 'description': 'For roads over 4m wide, hug right. For roads under 2m wide, hug left.', 'live': False},
                            }
 
     self.params = {}

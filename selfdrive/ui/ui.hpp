@@ -11,19 +11,18 @@
 #define NANOVG_GLES3_IMPLEMENTATION
 #define nvgCreate nvgCreateGLES3
 #endif
-
 #include <atomic>
 #include <pthread.h>
 #include "nanovg.h"
+
 #include "common/mat.h"
 #include "common/visionipc.h"
 #include "common/visionimg.h"
 #include "common/framebuffer.h"
 #include "common/modeldata.h"
-//#include "messaging.hpp"
-//#include "cereal/gen/c/log.capnp.h"
-//#include "cereal/gen/c/arne182.capnp.h"
 #include "sound.hpp"
+
+#include "cereal/gen/c/arne182.capnp.h"
 
 #define STATUS_STOPPED 0
 #define STATUS_DISENGAGED 1
@@ -34,11 +33,6 @@
 #define NET_CONNECTED 0
 #define NET_DISCONNECTED 1
 #define NET_ERROR 2
-
-#define ALERTSIZE_NONE 0
-#define ALERTSIZE_SMALL 1
-#define ALERTSIZE_MID 2
-#define ALERTSIZE_FULL 3
 
 #define COLOR_BLACK nvgRGBA(0, 0, 0, 255)
 #define COLOR_BLACK_ALPHA(x) nvgRGBA(0, 0, 0, x)
@@ -111,36 +105,31 @@ typedef struct UIScene {
   bool world_objects_visible;
   mat4 extrinsic_matrix;      // Last row is 0 so we can use mat4.
 
-  float v_cruise;
-  uint64_t v_cruise_update_ts;
-  float v_ego;
-  bool decel_for_model;
-  char ipAddr[20];
-  float gpsAccuracy;
-
+  //dev ui
   float speedlimit;
-  float angleSteers;
+  bool speedlimit_valid;
   float speedlimitaheaddistance;
   bool speedlimitahead_valid;
-  bool speedlimit_valid;
-
-  bool map_valid;
-  bool rightblindspot;
-  float rightblindspotD1;
-  float rightblindspotD2;
-  bool leftblindspot;
-  float leftblindspotD1;
-  float leftblindspotD2;
-
-  float curvature;
+  float gpsAccuracy;
+  float angleSteersDes;
+  float angleSteers;
+  float pa0;
+  float freeSpace;
+  int lead_status;
+  int lead_status2;
+  float lead_d_rel, lead_y_rel, lead_v_rel;
+  float lead_d_rel2, lead_y_rel2, lead_v_rel2;
   int engaged;
-  bool engageable;
-  bool monitoring_active;
+  bool brakeLights;
+  bool leftBlinker;
+  bool rightBlinker;
+  int blinker_blinkingrate;
+  char ipAddr[20];
 
   bool is_rhd;
+  bool map_valid;
   bool uilayout_sidebarcollapsed;
   bool uilayout_mapenabled;
-  bool uilayout_mockengaged;
   // responsive layout
   int ui_viz_rx;
   int ui_viz_rw;
@@ -153,45 +142,21 @@ typedef struct UIScene {
   std::string alert_type;
   cereal::ControlsState::AlertSize alert_size;
 
-  int dfButtonStatus;
-
-  bool recording;
-
-  // gernby pathcoloring
-  float output_scale;
-  bool steerOverride;
-
   // Used to show gps planner status
   bool gps_planner_active;
 
-  // Brake Lights
-  bool brakeLights;
+  // @shanes, dynamic Follow
+  int dfButtonStatus;
 
-  // kegman blinker
-  bool leftBlinker;
-  bool rightBlinker;
-  int blinker_blinkingrate;
-
-  // dev ui
-  float angleSteersDes;
-  float pa0;
-  float freeSpace;
-
-  uint8_t networkType;
-  uint8_t networkStrength;
-  int batteryPercent;
-  char batteryStatus[64];
-  //uint8_t thermalStatus;
-  int paTemp;
   cereal::HealthData::HwType hwType;
   int satelliteCount;
   uint8_t athenaStatus;
-  int gear;
 
   cereal::ThermalData::Reader thermal;
   cereal::RadarState::LeadData::Reader lead_data[2];
   cereal::ControlsState::Reader controls_state;
   cereal::DriverState::Reader driver_state;
+
 } UIScene;
 
 typedef struct {
@@ -225,47 +190,20 @@ typedef struct UIState {
   int font_sans_semibold;
   int font_sans_bold;
   int img_wheel;
-  int img_speed;
   int img_turn;
   int img_face;
   int img_map;
-  int img_brake;
   int img_button_settings;
   int img_button_home;
   int img_battery;
   int img_battery_charging;
   int img_network[6];
+  //dev ui
+  int img_brake;
+  int img_speed;
 
   // sockets
-  Context *ctx;
-  Context *ctxarne182;
-  SubSocket *model_sock;
-  SubSocket *controlsstate_sock;
-  SubSocket *livecalibration_sock;
-  SubSocket *radarstate_sock;
-  SubSocket *carstate_sock;
-  SubSocket *livempc_sock;
-  SubSocket *map_data_sock;
-  SubSocket *uilayout_sock;
-  SubSocket *gps_sock;
-  SubSocket *arne182_sock;
-  SubSocket *ipaddress_sock;
-  PubSocket *dynamicfollowbutton_sock;
-  Poller * poller;
-  Poller * pollerarne182;
-  SubSocket *thermalonline_sock;
-  SubSocket *health_sock;
-  SubSocket *ubloxgnss_sock;
-  SubSocket *driverstate_sock;
-  SubSocket *dmonitoring_sock;
-  PubSocket *offroad_sock;
-  Poller * ublox_poller;
-
-  //int active_app;
-
-  //from 077 update
   SubMaster *sm;
-  SubMaster *arne_sm;
   PubMaster *pm;
 
   cereal::UiLayoutState::App active_app;
@@ -310,7 +248,6 @@ typedef struct UIState {
   int limit_set_speed_timeout;
   int hardware_timeout;
   int last_athena_ping_timeout;
-  int offroad_layout_timeout;
 
   bool controls_seen;
 
@@ -324,16 +261,12 @@ typedef struct UIState {
   float alert_blinking_alpha;
   bool alert_blinked;
   bool started;
-  bool thermal_started, preview_started;
+  bool preview_started;
   bool vision_seen;
 
   std::atomic<float> light_sensor;
 
   int touch_fd;
-  
-  // Hints for re-calculations and redrawing
-  //bool model_changed;
-  bool livempc_or_radarstate_changed;
 
   GLuint frame_vao[2], frame_vbo[2], frame_ibo[2];
   mat4 rear_frame_mat, front_frame_mat;
@@ -342,10 +275,7 @@ typedef struct UIState {
 
   track_vertices_data track_vertices[2];
 
-  // dev ui
-  SubSocket *thermal_sock;
   Sound sound;
-
 } UIState;
 
 // API

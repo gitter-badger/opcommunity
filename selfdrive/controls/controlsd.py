@@ -17,7 +17,7 @@ from selfdrive.controls.lib.longcontrol import LongControl, STARTING_TARGET_SPEE
 from selfdrive.controls.lib.latcontrol_pid import LatControlPID
 from selfdrive.controls.lib.latcontrol_indi import LatControlINDI
 from selfdrive.controls.lib.latcontrol_lqr import LatControlLQR
-from selfdrive.controls.lib.events import Events, ET
+from selfdrive.controls.lib.events import Events, Events_arne182, ET
 from selfdrive.controls.lib.alertmanager import AlertManager
 from selfdrive.controls.lib.vehicle_model import VehicleModel
 from selfdrive.controls.lib.planner import LON_MPC_STEP
@@ -26,12 +26,9 @@ from selfdrive.locationd.calibration_helpers import Calibration
 from selfdrive.car.disable_radar import disable_radar
 from common.op_params import opParams
 from selfdrive.controls.lib.dynamic_follow.df_manager import dfManager
-
-op_params = opParams()
-df_manager = dfManager(op_params)
-
-hide_auto_df_alerts = op_params.get('hide_auto_df_alerts', False)
-traffic_light_alerts = op_params.get('traffic_light_alerts', True)
+#import selfdrive.crash as crash
+#from selfdrive.swaglog import cloudlog
+#from selfdrive.version import version, dirty
 
 LDW_MIN_SPEED = 12.5
 LANE_DEPARTURE_THRESHOLD = 0.1
@@ -67,6 +64,12 @@ class Controls:
     self.arne_sm = arne_sm
     if self.arne_sm is None:
       self.arne_sm = messaging_arne.SubMaster(['arne182Status', 'dynamicFollowButton', 'trafficModelEvent'])
+
+    self.op_params = opParams()
+    self.df_manager = dfManager(self.op_params)
+    self.hide_auto_df_alerts = self.op_params.get('hide_auto_df_alerts', False)
+    self.hide_auto_df_alerts = self.op_params.get('hide_auto_df_alerts', False)
+    self.traffic_light_alerts = self.op_params.get('traffic_light_alerts', True)
 
     self.can_sock = can_sock
     if can_sock is None:
@@ -108,12 +111,13 @@ class Controls:
     params.put("CarParams", cp_bytes)
     put_nonblocking("CarParamsCache", cp_bytes)
     put_nonblocking("LongitudinalControl", "1" if self.CP.openpilotLongitudinalControl else "0")
-    if CP.openpilotLongitudinalControl and CP.safetyModel in [car.CarParams.SafetyModel.hondaBoschGiraffe, car.CarParams.SafetyModel.hondaBoschHarness]:
+    if self.CP.openpilotLongitudinalControl and self.CP.safetyModel in [car.CarParams.SafetyModel.hondaBoschGiraffe, car.CarParams.SafetyModel.hondaBoschHarness]:
       disable_radar(can_sock, pm.sock['sendcan'], 1 if has_relay else 0, timeout=1, retry=10)
 
     self.CC = car.CarControl.new_message()
     self.AM = AlertManager()
     self.events = Events()
+    self.eventsArne182 = Events_arne182()
 
     self.LoC = LongControl(self.CP, self.CI.compute_gb)
     self.VM = VehicleModel(self.CP)
@@ -135,6 +139,7 @@ class Controls:
     self.mismatch_counter = 0
     self.can_error_counter = 0
     self.last_blinker_frame = 0
+    self.last_ldw_frame = 0
     self.saturated_count = 0
     self.distance_traveled = 0
     self.distance_traveled_override = 0
@@ -169,8 +174,9 @@ class Controls:
     """Compute carEvents from carState"""
 
     self.events.clear()
+    self.eventsArne182.clear()
     self.events.add_from_msg(CS.events)
-    self.events.add_from_msg(CS_arne182.events)
+    self.eventsArne182.add_from_msg(CS_arne182.events)
     self.events.add_from_msg(self.sm['dMonitoringState'].events)
 
     # Handle startup event
@@ -220,9 +226,9 @@ class Controls:
     if not self.sm.alive['plan'] and self.sm.alive['pathPlan']:
       # only plan not being received: radar not communicating
       self.events.add(EventName.radarCommIssue)
-    elif not self.sm.all_alive_and_valid():
+    elif not self.sm.all_alive_and_valid() and self.sm.frame > 5 / DT_CTRL:
       self.events.add(EventName.commIssue)
-    if not self.sm['pathPlan'].mpcSolutionValid:
+    if not self.sm['pathPlan'].mpcSolutionValid and self.sm.frame > 5 / DT_CTRL:
       self.events.add(EventName.plannerError)
     if not self.sm['liveLocationKalman'].sensorsOK and os.getenv("NOSENSOR") is None:
       if self.sm.frame > 5 / DT_CTRL:  # Give locationd some time to receive all the inputs
@@ -245,12 +251,12 @@ class Controls:
       self.events.add(EventName.relayMalfunction)
     if self.sm['plan'].fcw:
       self.events.add(EventName.fcw)
-    if self.sm['model'].frameDropPerc > 1:
-      self.events.add(EventName.modeldLagging)
+    #if self.sm['model'].frameDropPerc > 1:
+    #  self.events.add(EventName.modeldLagging)
 
     # Only allow engagement with brake pressed when stopped behind another stopped car
     if CS.brakePressed and self.sm['plan'].vTargetFuture >= STARTING_TARGET_SPEED \
-       and CP.openpilotLongitudinalControl and CS.vEgo < 0.3:
+       and self.CP.openpilotLongitudinalControl and CS.vEgo < 0.3:
       self.events.add(EventName.noTarget)
 
   def data_sample(self):
@@ -307,29 +313,29 @@ class Controls:
     # ENABLED, PRE ENABLING, SOFT DISABLING
     if self.state != State.disabled:
       # user and immediate disable always have priority in a non-disabled state
-      if self.events.any(ET.USER_DISABLE):
+      if self.events.any(ET.USER_DISABLE) or self.eventsArne182.any(ET.USER_DISABLE):
         self.state = State.disabled
         self.current_alert_types.append(ET.USER_DISABLE)
 
-      elif self.events.any(ET.IMMEDIATE_DISABLE):
+      elif self.events.any(ET.IMMEDIATE_DISABLE) or self.eventsArne182.any(ET.IMMEDIATE_DISABLE):
         self.state = State.disabled
         self.current_alert_types.append(ET.IMMEDIATE_DISABLE)
 
       else:
         # ENABLED
         if self.state == State.enabled:
-          if self.events.any(ET.SOFT_DISABLE):
+          if self.events.any(ET.SOFT_DISABLE) or self.eventsArne182.any(ET.SOFT_DISABLE):
             self.state = State.softDisabling
             self.soft_disable_timer = 300   # 3s
             self.current_alert_types.append(ET.SOFT_DISABLE)
 
         # SOFT DISABLING
         elif self.state == State.softDisabling:
-          if not self.events.any(ET.SOFT_DISABLE):
+          if not (self.events.any(ET.SOFT_DISABLE) or self.eventsArne182.any(ET.SOFT_DISABLE)):
             # no more soft disabling condition, so go back to ENABLED
             self.state = State.enabled
 
-          elif self.events.any(ET.SOFT_DISABLE) and self.soft_disable_timer > 0:
+          elif (self.events.any(ET.SOFT_DISABLE) or self.eventsArne182.any(ET.SOFT_DISABLE)) and self.soft_disable_timer > 0:
             self.current_alert_types.append(ET.SOFT_DISABLE)
 
           elif self.soft_disable_timer <= 0:
@@ -337,19 +343,19 @@ class Controls:
 
         # PRE ENABLING
         elif self.state == State.preEnabled:
-          if not self.events.any(ET.PRE_ENABLE):
+          if not (self.events.any(ET.PRE_ENABLE) or self.eventsArne182.any(ET.PRE_ENABLE)):
             self.state = State.enabled
           else:
             self.current_alert_types.append(ET.PRE_ENABLE)
 
     # DISABLED
     elif self.state == State.disabled:
-      if self.events.any(ET.ENABLE):
-        if self.events.any(ET.NO_ENTRY):
+      if self.events.any(ET.ENABLE) or self.eventsArne182.any(ET.ENABLE):
+        if self.events.any(ET.NO_ENTRY) or self.eventsArne182.any(ET.NO_ENTRY):
           self.current_alert_types.append(ET.NO_ENTRY)
 
         else:
-          if self.events.any(ET.PRE_ENABLE):
+          if self.events.any(ET.PRE_ENABLE) or self.eventsArne182.any(ET.PRE_ENABLE):
             self.state = State.preEnabled
           else:
             self.state = State.enabled
@@ -390,11 +396,11 @@ class Controls:
 
     # Gas/Brake PID loop
     if self.arne_sm.updated['arne182Status']:
-      gas_button_status = arne_sm['arne182Status'].gasbuttonstatus
+      gas_button_status = self.arne_sm['arne182Status'].gasbuttonstatus
     else:
       gas_button_status = 0
 
-    actuators.gas, actuators.brake = self.LoC.update(self.active, CS, v_acc_sol, plan.vTargetFuture, a_acc_sol, self.CP, plan.hasLead, self.sm['radarState'].leadOne.dRel, plan.decelForTurn, plan.longitudinalPlanSource, gas_button_status)
+    actuators.gas, actuators.brake = self.LoC.update(self.active, CS, v_acc_sol, plan.vTargetFuture, a_acc_sol, self.CP, plan.hasLead, self.sm['radarState'], plan.decelForTurn, plan.longitudinalPlanSource, gas_button_status)
     # Steering PID loop and lateral MPC
     actuators.steer, actuators.steerAngle, lac_log = self.LaC.update(self.active, CS, self.CP, path_plan)
 
@@ -448,48 +454,53 @@ class Controls:
 
     recent_blinker = (self.sm.frame - self.last_blinker_frame) * DT_CTRL < 5.0  # 5s blinker cooldown
     ldw_allowed = self.is_ldw_enabled and CS.vEgo > LDW_MIN_SPEED and not recent_blinker \
-                    and self.sm['liveCalibration'].calStatus == Calibration.CALIBRATED  # and not self.active 
+                    and self.sm['liveCalibration'].calStatus == Calibration.CALIBRATED  # and not self.active
 
     meta = self.sm['model'].meta
     if len(meta.desirePrediction) and ldw_allowed:
-      l_lane_change_prob = meta.desirePrediction[Desire.laneChangeLeft - 1]
-      r_lane_change_prob = meta.desirePrediction[Desire.laneChangeRight - 1]
-      
-      CAMERA_OFFSET = op_params.get('camera_offset', 0.06)
-      
-      l_lane_close = left_lane_visible and (self.sm['pathPlan'].lPoly[3] < (0.9 - CAMERA_OFFSET))
-      r_lane_close = right_lane_visible and (self.sm['pathPlan'].rPoly[3] > -(0.8 + CAMERA_OFFSET))
+      #l_lane_change_prob = meta.desirePrediction[Desire.laneChangeLeft - 1]
+      #r_lane_change_prob = meta.desirePrediction[Desire.laneChangeRight - 1]
 
-      CC.hudControl.leftLaneDepart = bool(l_lane_close)  # l_lane_change_prob > LANE_DEPARTURE_THRESHOLD and 
-      CC.hudControl.rightLaneDepart = bool(r_lane_close)  # r_lane_change_prob > LANE_DEPARTURE_THRESHOLD and 
+      l_lane_close = left_lane_visible and (self.sm['pathPlan'].lPoly[3] < 0.8)
+      r_lane_close = right_lane_visible and (self.sm['pathPlan'].rPoly[3] > -0.8)
 
-    if CC.hudControl.rightLaneDepart or CC.hudControl.leftLaneDepart:
+      CC.hudControl.leftLaneDepart = bool(l_lane_close)  # l_lane_change_prob > LANE_DEPARTURE_THRESHOLD and
+      CC.hudControl.rightLaneDepart = bool(r_lane_close)  # r_lane_change_prob > LANE_DEPARTURE_THRESHOLD and
+
+    if (CC.hudControl.rightLaneDepart or CC.hudControl.leftLaneDepart) and (self.sm.frame - self.last_ldw_frame) * DT_CTRL > 5.0:
       self.events.add(EventName.ldw)
+      self.last_ldw_frame = self.sm.frame
 
     alerts = self.events.create_alerts(self.current_alert_types, [self.CP, self.sm, self.is_metric])
+    alertsArne182 = self.eventsArne182.create_alerts(self.current_alert_types, [self.CP, self.sm, self.is_metric])
+    
     self.AM.add_many(self.sm.frame, alerts, self.enabled)
-    self.AM.process_alerts(self.sm.frame)
-    df_out = df_manager.update()
+    self.AM.add_many(self.sm.frame, alertsArne182, self.enabled)
+
+    df_out = self.df_manager.update()
+    frame = self.sm.frame
     if df_out.changed:
       df_alert = 'dfButtonAlert'
       if df_out.is_auto and df_out.last_is_auto:
-        if CS.cruiseState.enabled and not hide_auto_df_alerts:
-          df_alert += 'NoSound'
-          self.AM.add(frame, df_alert, enabled, extra_text_1=df_out.model_profile_text + ' (auto)', extra_text_2='Dynamic follow: {} profile active'.format(df_out.model_profile_text))
+        # only show auto alert if engaged, not hiding auto, and time since lane speed alert not showing
+        if CS.cruiseState.enabled and not self.hide_auto_df_alerts:
+          df_alert += 'Silent'
+          self.AM.add_custom(frame, df_alert, ET.WARNING, self.enabled, extra_text_1=df_out.model_profile_text + ' (auto)')
+          return
       else:
-        self.AM.add(frame, df_alert, enabled, extra_text_1=df_out.user_profile_text, extra_text_2='Dynamic follow: {} profile active'.format(df_out.user_profile_text))
-
-    if traffic_light_alerts:
+        self.AM.add_custom(frame, df_alert, ET.WARNING, self.enabled, extra_text_1=df_out.user_profile_text, extra_text_2='Dynamic follow: {} profile active'.format(df_out.user_profile_text))
+        return
+    if self.traffic_light_alerts:
       traffic_status = self.arne_sm['trafficModelEvent'].status
       traffic_confidence = round(self.arne_sm['trafficModelEvent'].confidence * 100, 2)
       if traffic_confidence >= 75:
         if traffic_status == 'SLOW':
-          self.AM.add(frame, 'trafficSlow', enabled, extra_text_2=' ({}%)'.format(traffic_confidence))
+          self.AM.add_custom(self.sm.frame, 'trafficSlow', ET.WARNING, self.enabled, extra_text_2=' ({}%)'.format(traffic_confidence))
         elif traffic_status == 'GREEN':
-          self.AM.add(frame, 'trafficGreen', enabled, extra_text_2=' ({}%)'.format(traffic_confidence))
+          self.AM.add_custom(self.sm.frame, 'trafficGreen', ET.WARNING, self.enabled, extra_text_2=' ({}%)'.format(traffic_confidence))
         elif traffic_status == 'DEAD':  # confidence will be 100
-          self.AM.add(frame, 'trafficDead', enabled)
-        
+          self.AM.add_custom(self.sm.frame, 'trafficDead', ET.WARNING, self.enabled)
+    self.AM.process_alerts(self.sm.frame)
     CC.hudControl.visualAlert = self.AM.visual_alert
 
     if not self.read_only:
@@ -523,7 +534,7 @@ class Controls:
     controlsState.vEgoRaw = CS.vEgoRaw
     controlsState.angleSteers = CS.steeringAngle
     controlsState.curvature = self.VM.calc_curvature(steer_angle_rad, CS.vEgo)
-    controlsState.decelForTurn = self.sm['plan'].decelForTurn,
+    controlsState.decelForTurn = self.sm['plan'].decelForTurn
     controlsState.steerOverride = CS.steeringPressed
     controlsState.state = self.state
     controlsState.engageable = not self.events.any(ET.NO_ENTRY)
@@ -615,6 +626,12 @@ class Controls:
       self.prof.display()
 
 def main(sm=None, pm=None, logcan=None, arne_sm=None):
+  #params = Params()
+  #dongle_id = params.get("DongleId").decode('utf-8')
+  #cloudlog.bind_global(dongle_id=dongle_id, version=version, dirty=dirty, is_eon=True)
+  #crash.bind_user(id=dongle_id)
+  #crash.bind_extra(version=version, dirty=dirty, is_eon=True)
+  #crash.install()
   controls = Controls(sm, pm, logcan, arne_sm)
   controls.controlsd_thread()
 

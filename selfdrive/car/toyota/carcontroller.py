@@ -3,10 +3,10 @@ import json
 from common.params import Params
 from common.numpy_fast import clip
 from selfdrive.car import apply_toyota_steer_torque_limits, create_gas_command, make_can_msg, gen_empty_fingerprint
-from selfdrive.car.toyota.toyotacan import create_steer_command, create_ui_command
-from selfdrive.car.toyota.values import Ecu, CAR, STATIC_MSGS, SteerLimitParams, TSS2_CAR
+from selfdrive.car.toyota.toyotacan import create_steer_command, create_ui_command, \
                                            create_accel_command, create_acc_cancel_command, \
                                            create_fcw_command
+from selfdrive.car.toyota.values import Ecu, CAR, STATIC_MSGS, SteerLimitParams, TSS2_CAR
 from opendbc.can.packer import CANPacker
 #from common.op_params import opParams
 #import cereal.messaging as messaging
@@ -149,7 +149,7 @@ class CarController():
       self.last_fault_frame = frame
 
     # Cut steering for 1s after fault
-    if (frame - self.last_fault_frame < 100) or abs(CS.out.steeringRate) > 100 or (abs(CS.out.steeringAngle) > 100 and CS.CP.carFingerprint in [CAR.RAV4H, CAR.PRIUS]):
+    if (frame - self.last_fault_frame < 100) or abs(CS.out.steeringRate) > 100 or (abs(CS.out.steeringAngle) > 400 and CS.CP.carFingerprint in [CAR.RAV4H, CAR.PRIUS]):
       new_steer = 0
       apply_steer_req = 0
     else:
@@ -158,15 +158,15 @@ class CarController():
     if not enabled and right_lane_depart and CS.out.vEgo > 12.5 and not CS.out.rightBlinker:
       new_steer = self.last_steer + 3
       new_steer = min(new_steer , 800)
-      print ("right")
-      print (new_steer)
+      #print ("right")
+      #print (new_steer)
       apply_steer_req = 1
 
     if not enabled and left_lane_depart and CS.out.vEgo > 12.5 and not CS.out.leftBlinker:
       new_steer = self.last_steer - 3
       new_steer = max(new_steer , -800)
-      print ("left")
-      print (new_steer)
+      #print ("left")
+      #print (new_steer)
       apply_steer_req = 1
 
     apply_steer = apply_toyota_steer_torque_limits(new_steer, self.last_steer, CS.out.steeringTorqueEps, SteerLimitParams)
