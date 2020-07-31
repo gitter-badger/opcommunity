@@ -494,7 +494,7 @@ def manager_thread():
         else:
           start_managed_process(p)
     else:
-      logger_dead = False
+      logger_dead = True  # set to False for logging
       for p in reversed(car_started_processes):
         kill_managed_process(p)
       # this is ugly
@@ -564,6 +564,9 @@ def main():
     ("LaneChangeEnabled", "1"),
     ("IsDriverViewEnabled", "0"),
     ("DisablePowerDownTime", "30"),
+    ("DistanceTraveled", "0"),
+    ("DistanceTraveledEngaged", "0"),
+    ("DistanceTraveledOverride", "0"),
   ]
 
   # set unset params

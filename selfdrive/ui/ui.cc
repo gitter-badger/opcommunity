@@ -17,6 +17,7 @@
 #include "common/utilpp.h"
 #include "ui.hpp"
 #include "cereal/gen/cpp/arne182.capnp.h"
+#include "dashcam.h"
 
 static void ui_set_brightness(UIState *s, int brightness) {
   static int last_brightness = -1;
@@ -357,6 +358,7 @@ void handle_message(UIState *s, SubMaster &sm) {
         }
       }
     }
+    scene.steerOverride = data.getSteerOverride();
     scene.angleSteers = data.getAngleSteers();
     scene.angleSteersDes = data.getAngleSteersDes();
   }
@@ -422,7 +424,8 @@ void handle_message(UIState *s, SubMaster &sm) {
   if (sm.updated("thermal")) {
     scene.thermal = sm["thermal"].getThermal();
     scene.pa0 = scene.thermal.getPa0();
-    scene.freeSpace = scene.thermal.getFreeSpace;
+    scene.freeSpace = scene.thermal.getFreeSpace();
+    scene.ipAddr = scene.thermal.getIpAddr();
   }
   if (sm.updated("ubloxGnss")) {
     auto data = sm["ubloxGnss"].getUbloxGnss();
@@ -895,6 +898,7 @@ int main(int argc, char* argv[]) {
 
     // Don't waste resources on drawing in case screen is off
     if (s->awake) {
+      dashcam(s, touch_x, touch_y);
       ui_draw(s);
       glFinish();
       should_swap = true;

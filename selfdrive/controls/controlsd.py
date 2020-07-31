@@ -26,6 +26,7 @@ from selfdrive.locationd.calibration_helpers import Calibration
 from selfdrive.car.disable_radar import disable_radar
 from common.op_params import opParams
 from selfdrive.controls.lib.dynamic_follow.df_manager import dfManager
+from common.travis_checker import travis
 #import selfdrive.crash as crash
 #from selfdrive.swaglog import cloudlog
 #from selfdrive.version import version, dirty
@@ -33,7 +34,7 @@ from selfdrive.controls.lib.dynamic_follow.df_manager import dfManager
 LDW_MIN_SPEED = 12.5
 LANE_DEPARTURE_THRESHOLD = 0.1
 STEER_ANGLE_SATURATION_TIMEOUT = 1.0 / DT_CTRL
-STEER_ANGLE_SATURATION_THRESHOLD = 2.5  # Degrees
+STEER_ANGLE_SATURATION_THRESHOLD = 2.75  # Degrees
 
 ThermalStatus = log.ThermalData.ThermalStatus
 State = log.ControlsState.OpenpilotState
@@ -141,9 +142,17 @@ class Controls:
     self.last_blinker_frame = 0
     self.last_ldw_frame = 0
     self.saturated_count = 0
-    self.distance_traveled = 0
-    self.distance_traveled_override = 0
-    self.distance_traveled_engaged = 0
+    self.distance_traveled_now = 0
+    if not travis:
+      self.distance_traveled = float(params.get("DistanceTraveled", encoding='utf8'))
+      self.distance_traveled_engaged = float(params.get("DistanceTraveledEngaged", encoding='utf8'))
+      self.distance_traveled_override = float(params.get("DistanceTraveledOverride", encoding='utf8'))
+    else:
+      self.distance_traveled = 0
+      self.distance_traveled_engaged = 0
+      self.distance_traveled_override = 0
+      
+    self.distance_traveled_frame = 0
     self.events_prev = []
     self.current_alert_types = [ET.PERMANENT]
 
@@ -233,7 +242,7 @@ class Controls:
     if not self.sm['liveLocationKalman'].sensorsOK and os.getenv("NOSENSOR") is None:
       if self.sm.frame > 5 / DT_CTRL:  # Give locationd some time to receive all the inputs
         self.events.add(EventName.sensorDataInvalid)
-    if not self.sm['liveLocationKalman'].gpsOK and (self.distance_traveled > 1000) and os.getenv("NOSENSOR") is None:
+    if not self.sm['liveLocationKalman'].gpsOK and (self.distance_traveled_now > 1000) and os.getenv("NOSENSOR") is None:
       # Not show in first 1 km to allow for driving out of garage. This event shows after 5 minutes
       self.events.add(EventName.noGps)
     if not self.sm['pathPlan'].paramsValid:
@@ -284,13 +293,18 @@ class Controls:
 
     if not self.sm['health'].controlsAllowed and self.enabled:
       self.mismatch_counter += 1
-
+    self.distance_traveled_now += CS.vEgo * DT_CTRL
     self.distance_traveled += CS.vEgo * DT_CTRL
     if self.enabled:
       self.distance_traveled_engaged += CS.vEgo * DT_CTRL
       if CS.steeringPressed:
         self.distance_traveled_override += CS.vEgo * DT_CTRL
-
+    if (self.sm.frame - self.distance_traveled_frame) * DT_CTRL > 10.0 and not travis:
+      params = Params()
+      params.put("DistanceTraveled", str(self.distance_traveled))
+      params.put("DistanceTraveledEngaged", str(self.distance_traveled_engaged))
+      params.put("DistanceTraveledOverride", str(self.distance_traveled_override))
+      self.distance_traveled_frame = self.sm.frame
     return CS, CS_arne182
 
   def state_transition(self, CS):
@@ -417,8 +431,8 @@ class Controls:
     if (lac_log.saturated and not CS.steeringPressed) or \
        (self.saturated_count > STEER_ANGLE_SATURATION_TIMEOUT):
       # Check if we deviated from the path
-      left_deviation = actuators.steer > 0 and path_plan.dPoly[3] > 0.1
-      right_deviation = actuators.steer < 0 and path_plan.dPoly[3] < -0.1
+      left_deviation = actuators.steer > 0 and path_plan.dPoly[3] > 0.15
+      right_deviation = actuators.steer < 0 and path_plan.dPoly[3] < -0.15
 
       if left_deviation or right_deviation:
         self.events.add(EventName.steerSaturated)

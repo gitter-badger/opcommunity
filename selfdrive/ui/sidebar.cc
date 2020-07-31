@@ -39,19 +39,17 @@ static void ui_draw_sidebar_network_strength(UIState *s) {
 }
 
 // IP  address, thank you @eFini
-/*static void ui_draw_sidebar_ip_addr(UIState *s, bool hasSidebar) {
+static void ui_draw_sidebar_ip_addr(UIState *s) {
   const int network_ip_w = 176;
   const int network_ip_x = !s->scene.uilayout_sidebarcollapsed ? 54 : -(sbr_w);
   const int network_ip_y = 255;
 
-  char network_ip_str[20];
-  snprintf(network_ip_str, sizeof(network_ip_str), "%s", s->scene.ipAddr);
   nvgFillColor(s->vg, COLOR_WHITE);
   nvgFontSize(s->vg, 34);
-   nvgFontFaceId(s->vg, s->font_sans_regular);
+  nvgFontFaceId(s->vg, s->font_sans_regular);
   nvgTextAlign(s->vg, NVG_ALIGN_CENTER | NVG_ALIGN_MIDDLE);
-  nvgTextBox(s->vg, network_ip_x, network_ip_y, network_ip_w, network_ip_str, NULL);
-}*/
+  nvgTextBox(s->vg, network_ip_x, network_ip_y, network_ip_w, s->scene.ipAddr.c_str(), NULL);
+}
 
 static void ui_draw_sidebar_battery_text(UIState *s) {
   const int battery_img_w = 96;
@@ -207,7 +205,7 @@ void ui_draw_sidebar(UIState *s) {
   ui_draw_sidebar_settings_button(s);
   ui_draw_sidebar_home_button(s);
   ui_draw_sidebar_network_strength(s);
-  //ui_draw_sidebar_ip_addr(s);
+  ui_draw_sidebar_ip_addr(s);
   ui_draw_sidebar_battery_text(s);
   ui_draw_sidebar_network_type(s);
   ui_draw_sidebar_temp_metric(s);

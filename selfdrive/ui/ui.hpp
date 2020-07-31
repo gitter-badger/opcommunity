@@ -122,9 +122,10 @@ typedef struct UIScene {
   int engaged;
   bool brakeLights;
   bool leftBlinker;
+  bool steerOverride;
   bool rightBlinker;
   int blinker_blinkingrate;
-  char ipAddr[20];
+  std::string ipAddr;
 
   bool is_rhd;
   bool map_valid;
@@ -147,6 +148,9 @@ typedef struct UIScene {
 
   // @shanes, dynamic Follow
   int dfButtonStatus;
+  
+  // dashcam
+  bool recording;
 
   cereal::HealthData::HwType hwType;
   int satelliteCount;
@@ -204,6 +208,7 @@ typedef struct UIState {
 
   // sockets
   SubMaster *sm;
+  //SubMaster *arne_sm;
   PubMaster *pm;
 
   cereal::UiLayoutState::App active_app;

@@ -17,7 +17,7 @@ from common.filter_simple import FirstOrderFilter
 from selfdrive.version import terms_version, training_version
 from selfdrive.swaglog import cloudlog
 import cereal.messaging as messaging
-import cereal.messaging_arne as messaging_arne
+#import cereal.messaging_arne as messaging_arne
 from selfdrive.loggerd.config import get_available_percent
 from selfdrive.pandad import get_expected_version
 from selfdrive.thermald.power_monitoring import PowerMonitoring, get_battery_capacity, get_battery_status, \
@@ -203,7 +203,7 @@ def thermald_thread():
   pm = PowerMonitoring()
   no_panda_cnt = 0
 
-  arne_pm = messaging_arne.PubMaster(['ipAddress'])
+  #arne_pm = messaging_arne.PubMaster(['ipAddress'])
 
   while 1:
     health = messaging.recv_sock(health_sock, wait=True)
@@ -314,9 +314,10 @@ def thermald_thread():
       except:
         ip_addr = 'N/A'
       ts_last_ip = ts
-      msg2 = messaging_arne.new_message('ipAddress')
-      msg2.ipAddress.ipAddr = ip_addr
-      arne_pm.send('ipAddress', msg2)
+      #msg2 = messaging_arne.new_message('ipAddress')
+      
+      #arne_pm.send('ipAddress', msg2)
+    msg.thermal.ipAddr = ip_addr
 
     current_filter.update(msg.thermal.batteryCurrent / 1e6)
 
