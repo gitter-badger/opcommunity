@@ -2,14 +2,15 @@ import os
 import math
 
 import cereal.messaging as messaging
+import cereal.messaging_arne as messaging_arne
 from selfdrive.swaglog import cloudlog
 from common.realtime import sec_since_boot
-from common.travis_checker import travis
 from selfdrive.controls.lib.radar_helpers import _LEAD_ACCEL_TAU
 from selfdrive.controls.lib.longitudinal_mpc import libmpc_py
 from selfdrive.controls.lib.drive_helpers import MPC_COST_LONG
-if not travis:
-  from selfdrive.controls.lib.dynamic_follow import DynamicFollow
+from common.op_params import opParams
+from common.numpy_fast import interp, clip
+from common.travis_checker import travis
 
 LOG_MPC = os.environ.get('LOG_MPC', False)
 
@@ -17,8 +18,8 @@ LOG_MPC = os.environ.get('LOG_MPC', False)
 class LongitudinalMpc():
   def __init__(self, mpc_id):
     self.mpc_id = mpc_id
-    if not travis:
-      self.dynamic_follow = DynamicFollow(mpc_id)
+    self.op_params = opParams()
+
     self.setup_mpc()
     self.v_mpc = 0.0
     self.v_mpc_future = 0.0
@@ -27,8 +28,16 @@ class LongitudinalMpc():
     self.prev_lead_status = False
     self.prev_lead_x = 0.0
     self.new_lead = False
-
+    self.TR_Mod = 0
     self.last_cloudlog_t = 0.0
+
+    if not travis and mpc_id == 1:
+      self.pm = messaging_arne.PubMaster(['smiskolData'])
+    else:
+      self.pm = None
+    self.last_cost = 0.0
+    self.df_profile = self.op_params.get('dynamic_follow', 'relaxed').strip().lower()
+    self.sng = False
 
   def send_mpc_solution(self, pm, qp_iterations, calculation_time):
     qp_iterations = max(0, qp_iterations)
@@ -60,9 +69,61 @@ class LongitudinalMpc():
     self.cur_state[0].v_ego = v
     self.cur_state[0].a_ego = a
 
+  def get_TR(self, CS, lead):
+    if not lead.status or travis:
+      TR = 1.8
+    elif CS.vEgo < 5.0:
+      TR = 1.8
+    else:
+      TR = self.dynamic_follow(CS, lead)
+
+    if not travis:
+      self.change_cost(TR,CS.vEgo)
+      self.send_cur_TR(TR)
+    return TR
+
+  def send_cur_TR(self, TR):
+    if self.mpc_id == 1 and self.pm is not None:
+      dat = messaging_arne.new_message('smiskolData')
+      dat.smiskolData.mpcTR = TR
+      self.pm.send('smiskolData', dat)
+
+  def change_cost(self, TR, vEgo):
+    TRs = [0.9, 1.8, 2.7]
+    costs = [1.0, 0.11, 0.05]
+    cost = interp(TR, TRs, costs)
+    if self.last_cost != cost:
+      self.libmpc.change_tr(MPC_COST_LONG.TTC, cost, MPC_COST_LONG.ACCELERATION, MPC_COST_LONG.JERK)
+      self.last_cost = cost
+
+  def dynamic_follow(self, CS, lead):
+    self.df_profile = self.op_params.get('dynamic_follow', 'normal').strip().lower()
+    x_vel = [5.0, 15.0]  # velocities
+    if self.df_profile == 'far':
+      y_dist = [1.8, 2.7]  # TRs
+    elif self.df_profile == 'close':  # for in congested traffic
+      x_vel = [5.0, 15.0]
+      y_dist = [1.8, 0.9]
+    else:  # default to normal
+      y_dist = [1.8, 1.8]
+    TR = interp(CS.vEgo, x_vel, y_dist)
+
+    # Dynamic follow modifications (the secret sauce)
+    x = [-5.0, 0.0, 5.0]  # relative velocity values
+    y = [0.3, 0.0, -0.3]  # modification values
+
+    self.TR_Mod = interp(lead.vRel, x, y)
+    TR += self.TR_Mod
+
+    if CS.leftBlinker or CS.rightBlinker:
+      x = [9.0, 55.0]  #
+      y = [1.0, 0.65]  # reduce TR when changing lanes
+      TR *= interp(CS.vEgo, x, y)
+
+    return clip(TR, 0.9, 2.7)
+
   def update(self, pm, CS, lead, v_cruise_setpoint):
     v_ego = CS.vEgo
-
     # Setup current mpc state
     self.cur_state[0].x_ego = 0.0
 
@@ -74,21 +135,17 @@ class LongitudinalMpc():
       if (v_lead < 0.1 or -a_lead / 2.0 > v_lead):
         v_lead = 0.0
         a_lead = 0.0
-
       self.a_lead_tau = lead.aLeadTau
       self.new_lead = False
       if not self.prev_lead_status or abs(x_lead - self.prev_lead_x) > 2.5:
         self.libmpc.init_with_simulation(self.v_mpc, x_lead, v_lead, a_lead, self.a_lead_tau)
         self.new_lead = True
-      if not travis:
-        self.dynamic_follow.update_lead(v_lead, a_lead, x_lead, lead.status, self.new_lead)
+
       self.prev_lead_status = True
       self.prev_lead_x = x_lead
       self.cur_state[0].x_l = x_lead
       self.cur_state[0].v_l = v_lead
     else:
-      if not travis:
-        self.dynamic_follow.update_lead(new_lead=self.new_lead)
       self.prev_lead_status = False
       # Fake a fast lead car, so mpc keeps running
       self.cur_state[0].x_l = 50.0
@@ -98,11 +155,7 @@ class LongitudinalMpc():
 
     # Calculate mpc
     t = sec_since_boot()
-    if not travis:
-      TR = self.dynamic_follow.update(CS, self.libmpc)  # update dynamic follow
-    else:
-      TR = 1.8
-    n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, TR)
+    n_its = self.libmpc.run_mpc(self.cur_state, self.mpc_solution, self.a_lead_tau, a_lead, self.get_TR(CS, lead))
     duration = int((sec_since_boot() - t) * 1e9)
 
     if LOG_MPC:

@@ -9,7 +9,6 @@ from selfdrive.car.chrysler.values import DBC, STEER_THRESHOLD
 class CarState(CarStateBase):
   def __init__(self, CP):
     super().__init__(CP)
-    #self.pcm_acc_active = False
     can_define = CANDefine(DBC[CP.carFingerprint]['pt'])
     self.shifter_values = can_define.dv["GEAR"]['PRNDL']
 
@@ -23,7 +22,7 @@ class CarState(CarStateBase):
                         cp.vl["DOORS"]['DOOR_OPEN_FR'],
                         cp.vl["DOORS"]['DOOR_OPEN_RL'],
                         cp.vl["DOORS"]['DOOR_OPEN_RR']])
-    ret.seatbeltUnlatched = cp.vl["SEATBELT_STATUS"]['SEATBELT_DRIVER_UNLATCHED'] == 1
+    ret.seatbeltUnlatched = cp.vl["SEATBELT_STATUS"]['SEATBELT_DRIVER'] == 1 or cp.vl["SEATBELT_STATUS"]['SEATBELT_DRIVER'] == 2 # 1 or 2 means unbuckled. 
 
     ret.brakePressed = cp.vl["BRAKE_2"]['BRAKE_PRESSED_2'] == 5  # human-only
     ret.brake = 0
@@ -43,13 +42,11 @@ class CarState(CarStateBase):
 
     ret.leftBlinker = cp.vl["STEERING_LEVERS"]['TURN_SIGNALS'] == 1
     ret.rightBlinker = cp.vl["STEERING_LEVERS"]['TURN_SIGNALS'] == 2
-    ret.steeringAngle = cp.vl["STEERING"]['STEER_ANGLE']
+    ret.steeringAngle = cp.vl["STEERING"]['STEER_ANGLE'] + cp.vl["STEERING"]['STEER_ANGLE_HIGH_PRECISION']
     ret.steeringRate = cp.vl["STEERING"]['STEERING_RATE']
     ret.gearShifter = self.parse_gear_shifter(self.shifter_values.get(cp.vl['GEAR']['PRNDL'], None))
+
     ret.cruiseState.enabled = cp.vl["ACC_2"]['ACC_STATUS_2'] == 7  # ACC is green.
-    #if cp.vl["ACC_2"]['ACC_STATUS_2'] == 7:  # ACC is green.
-    #  self.pcm_acc_active = True
-    #ret.cruiseState.enabled = self.pcm_acc_active
     ret.cruiseState.available = ret.cruiseState.enabled  # FIXME: for now same as enabled
     ret.cruiseState.speed = cp.vl["DASHBOARD"]['ACC_SPEED_CONFIG_KPH'] * CV.KPH_TO_MS
 
@@ -68,48 +65,6 @@ class CarState(CarStateBase):
     return ret
 
   @staticmethod
-  def get_can_parser_init(CP):
-    signals = [
-      # sig_name, sig_address, default
-      ("PRNDL", "GEAR", 0),
-      ("DOOR_OPEN_FL", "DOORS", 0),
-      ("DOOR_OPEN_FR", "DOORS", 0),
-      ("DOOR_OPEN_RL", "DOORS", 0),
-      ("DOOR_OPEN_RR", "DOORS", 0),
-      ("BRAKE_PRESSED_2", "BRAKE_2", 0),
-      ("ACCEL_134", "ACCEL_GAS_134", 0),
-      ("SPEED_LEFT", "SPEED_1", 0),
-      ("SPEED_RIGHT", "SPEED_1", 0),
-      ("WHEEL_SPEED_FL", "WHEEL_SPEEDS", 0),
-      ("WHEEL_SPEED_RR", "WHEEL_SPEEDS", 0),
-      ("WHEEL_SPEED_RL", "WHEEL_SPEEDS", 0),
-      ("WHEEL_SPEED_FR", "WHEEL_SPEEDS", 0),
-      ("STEER_ANGLE", "STEERING", 0),
-      ("STEERING_RATE", "STEERING", 0),
-      ("TURN_SIGNALS", "STEERING_LEVERS", 0),
-      ("ACC_STATUS_2", "ACC_2", 0),
-      ("HIGH_BEAM_FLASH", "STEERING_LEVERS", 0),
-      ("ACC_SPEED_CONFIG_KPH", "DASHBOARD", 0),
-      ("TORQUE_DRIVER", "EPS_STATUS", 0),
-      ("TORQUE_MOTOR", "EPS_STATUS", 0),
-      ("LKAS_STATE", "EPS_STATUS", 1),
-      ("COUNTER", "EPS_STATUS", -1),
-      ("TRACTION_OFF", "TRACTION_BUTTON", 0),
-      ("SEATBELT_DRIVER_UNLATCHED", "SEATBELT_STATUS", 0),
-    ]
-
-    checks = [
-      # sig_address, frequency
-      ("BRAKE_2", 50),
-      ("EPS_STATUS", 100),
-      ("SPEED_1", 100),
-      ("WHEEL_SPEEDS", 50),
-      ("STEERING", 100),
-      ("ACC_2", 50),
-    ]
-
-    return CANParser(DBC[CP.carFingerprint]['pt'], signals, checks, 0)
-  @staticmethod
   def get_can_parser(CP):
     signals = [
       # sig_name, sig_address, default
@@ -127,6 +82,7 @@ class CarState(CarStateBase):
       ("WHEEL_SPEED_RL", "WHEEL_SPEEDS", 0),
       ("WHEEL_SPEED_FR", "WHEEL_SPEEDS", 0),
       ("STEER_ANGLE", "STEERING", 0),
+      ("STEER_ANGLE_HIGH_PRECISION", "STEERING", 0),
       ("STEERING_RATE", "STEERING", 0),
       ("TURN_SIGNALS", "STEERING_LEVERS", 0),
       ("ACC_STATUS_2", "ACC_2", 0),
@@ -137,7 +93,7 @@ class CarState(CarStateBase):
       ("LKAS_STATE", "EPS_STATUS", 1),
       ("COUNTER", "EPS_STATUS", -1),
       ("TRACTION_OFF", "TRACTION_BUTTON", 0),
-      ("SEATBELT_DRIVER_UNLATCHED", "SEATBELT_STATUS", 0),
+      ("SEATBELT_DRIVER", "SEATBELT_STATUS", 0),
     ]
 
     checks = [

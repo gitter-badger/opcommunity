@@ -26,10 +26,11 @@ class CarInterface(CarInterfaceBase):
 
     # Speed conversion:              20, 45 mph
     ret.wheelbase = 3.089  # in meters for Pacifica Hybrid 2017
-    ret.steerRatio = 16.2  # Pacifica Hybrid 2017
-    ret.mass = 2858. + STD_CARGO_KG  # kg curb weight Pacifica Hybrid 2017
-    ret.lateralTuning.pid.kpBP, ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kfBP = [[9., 20.], [9., 20.], [0.]]
-    ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV, ret.lateralTuning.pid.kfV = [[0.15,0.30], [0.03,0.05], [0.00006]] # full torque for 10 deg at 80mph means 0.00007818594
+    ret.steerRatio = 16.2 # Pacifica Hybrid 2017
+    ret.mass = 1964. + STD_CARGO_KG  # kg curb weight Pacifica General
+    ret.lateralTuning.pid.kpBP, ret.lateralTuning.pid.kiBP = [[9., 20.], [9., 20.]]
+    ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.15,0.30], [0.03,0.05]]
+    ret.lateralTuning.pid.kf = 0.00006   # full torque for 10 deg at 80mph means 0.00007818594
     ret.steerActuatorDelay = 0.1
     ret.steerRateCost = 0.7
     ret.steerLimitTimer = 0.4
@@ -38,6 +39,12 @@ class CarInterface(CarInterfaceBase):
       ret.wheelbase = 2.91  # in meters
       ret.steerRatio = 12.7
       ret.steerActuatorDelay = 0.2  # in seconds
+
+    if candidate in (CAR.CHRYSLER_300_2018):
+      ret.wheelbase = 3.05308 # in meters
+      ret.steerRatio = 15.5 # 2013 V-6 (RWD) — 15.5:1 V-6 (AWD) — 16.5:1 V-8 (RWD) — 15.5:1 V-8 (AWD) — 16.5:1
+      ret.mass = 1828.0 + STD_CARGO_KG # 2013 V-6 RWD
+      ret.lateralTuning.pid.kf = 0.00005584521385   # full torque for 10 deg at 80mph means 0.00007818594
 
     ret.centerToFront = ret.wheelbase * 0.44
 
@@ -54,7 +61,7 @@ class CarInterface(CarInterfaceBase):
     ret.tireStiffnessFront, ret.tireStiffnessRear = scale_tire_stiffness(ret.mass, ret.wheelbase, ret.centerToFront)
 
     ret.enableCamera = is_ecu_disconnected(fingerprint[0], FINGERPRINTS, ECU_FINGERPRINT, candidate, Ecu.fwdCamera) or has_relay
-    print("ECU Camera Simulated: {0}".format(ret.enableCamera))
+    #print("ECU Camera Simulated: {0}".format(ret.enableCamera))
 
     return ret
 

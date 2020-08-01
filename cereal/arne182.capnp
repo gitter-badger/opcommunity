@@ -147,11 +147,6 @@ struct DynamicFollowButton {
   status @0 :UInt16;
 }
 
-struct DynamicFollowData {
-  mpcTR @0 :Float32;
-  profilePred @1 :UInt16;
-}
-
 struct IPAddress {
  ipAddr @0 :Text; # dragonpilot
 }
@@ -186,8 +181,5 @@ struct EventArne182 {
     ipAddress @10 :IPAddress;
     trafficModelRaw @11: TrafficModelRaw;
     trafficModelEvent @12: TrafficModelEvent;
-    dynamicFollowData @13 :DynamicFollowData;
-    #e2e button from shane. https://github.com/ShaneSmiskol/openpilot/pull/130/files
-    modelLongButton @14 :ModelLongButton;
   }
 }

@@ -57,23 +57,9 @@ else:
     ipaddress = requests.get('https://checkip.amazonaws.com/').text.strip()
   except:
     ipaddress = "255.255.255.255"
-  error_tags = {'dirty': dirty, 'dongle_id': dongle_id, 'branch': branch, 'remote': origin}
-  #uniqueID = op_params.get('uniqueID', None)
-  username = opParams().get('username', None)
-  if username is None or not isinstance(username, str):
-    username = 'undefined'
-  error_tags['username'] = username
-
-
-  u_tag = []
-  if isinstance(username, str):
-    u_tag.append(username)
-  #if isinstance(uniqueID, str):
-    #u_tag.append(uniqueID)
-  if len(u_tag) > 0:
-    error_tags['username'] = ''.join(u_tag)
-
-  client = Client('https://02adbf0d37054eb2b0ef44ef41f1e320@o400203.ingest.sentry.io/5270413',
+  error_tags = {'dirty': dirty, 'username': uniqueID, 'dongle_id': dongle_id, 'branch': branch, 'remote': origin}
+  
+  client = Client('https://21681855cccf4d889a6369637d1721fe@o400203.ingest.sentry.io/5258423',
                   install_sys_hook=False, transport=HTTPTransport, release=version, tags=error_tags)
 
   def capture_exception(*args, **kwargs):

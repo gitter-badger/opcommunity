@@ -32,20 +32,18 @@ class CarInterface(CarInterfaceBase):
     ret.steerActuatorDelay = 0.12  # Default delay, Prius has larger delay
     ret.steerLimitTimer = 0.4
 
-    if ret.enableGasInterceptor:
-      ret.gasMaxBP = [0., 9., 55]
-      ret.gasMaxV = [0.2, 0.5, 0.7]
-      # ret.longitudinalTuning.kpV = [0.5, 0.4, 0.3]  # braking tune, todo: test me vs. stock below
-      # ret.longitudinalTuning.kiV = [0.135, 0.1]
-      ret.longitudinalTuning.kpV = [1.2, 0.8, 0.5]
-      ret.longitudinalTuning.kiV = [0.18, 0.12]
-    else:
-      ret.gasMaxBP = [0., 9., 55]
-      ret.gasMaxV = [0.2, 0.5, 0.7]
-      ret.longitudinalTuning.kpV = [0.4, 0.36, 0.325]  # braking tune from rav4h
-      ret.longitudinalTuning.kiV = [0.195, 0.10]
+    #if ret.enableGasInterceptor:
+    #  ret.gasMaxBP = [0., 9., 55]
+    #  ret.gasMaxV = [0.2, 0.5, 0.7]
+    #  ret.longitudinalTuning.kpV = [0.5, 0.4, 0.3]  # braking tune
+    #  ret.longitudinalTuning.kiV = [0.135, 0.1]
+    #else:
+    ret.gasMaxBP = [0., 9., 55]
+    ret.gasMaxV = [0.2, 0.5, 0.7]
+    ret.longitudinalTuning.kpV = [0.4, 0.5, 0.325]  # braking tune from rav4h
+    ret.longitudinalTuning.kiV = [0.15, 0.10]
 
-    if candidate not in [CAR.PRIUS_2019, CAR.PRIUS, CAR.RAV4, CAR.RAV4H, CAR.COROLLA]: # These cars use LQR/INDI
+    if candidate not in [CAR.PRIUS_2019, CAR.PRIUS, CAR.RAV4, CAR.RAV4H]: # These cars use LQR/INDI
       ret.lateralTuning.init('pid')
       ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP, ret.lateralTuning.pid.kfBP = [[0.], [0.], [0.]]
 
@@ -110,17 +108,8 @@ class CarInterface(CarInterfaceBase):
       ret.steerRatio = 18.27
       tire_stiffness_factor = 0.444  # not optimized yet
       ret.mass = 2860. * CV.LB_TO_KG + STD_CARGO_KG  # mean between normal and hybrid
-      ret.lateralTuning.init('lqr')
-
-      ret.lateralTuning.lqr.scale = 1500.0
-      ret.lateralTuning.lqr.ki = 0.06
-
-      ret.lateralTuning.lqr.a = [0., 1., -0.22619643, 1.21822268]
-      ret.lateralTuning.lqr.b = [-1.92006585e-04, 3.95603032e-05]
-      ret.lateralTuning.lqr.c = [1., 0.]
-      ret.lateralTuning.lqr.k = [-110.73572306, 451.22718255]
-      ret.lateralTuning.lqr.l = [0.3233671, 0.3185757]
-      ret.lateralTuning.lqr.dcGain = 0.002237852961363602
+      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.2], [0.05]]
+      ret.lateralTuning.pid.kf = 0.00003   # full torque for 20 deg at 80mph means 0.00007818594
 
     elif candidate == CAR.LEXUS_RX:
       stop_and_go = True
