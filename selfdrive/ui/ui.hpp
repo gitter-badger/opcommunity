@@ -146,9 +146,10 @@ typedef struct UIScene {
   // Used to show gps planner status
   bool gps_planner_active;
 
-  // @shanes, dynamic Follow
+  // @shanes, dynamic Follow and e2e (modellong)
   int dfButtonStatus;
-  
+  bool mlButtonEnabled;
+
   // dashcam
   bool recording;
 
@@ -268,6 +269,8 @@ typedef struct UIState {
   bool started;
   bool preview_started;
   bool vision_seen;
+  
+  bool livempc_or_radarstate_changed;
 
   std::atomic<float> light_sensor;
 

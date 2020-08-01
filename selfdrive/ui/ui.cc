@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <iostream>
 #include <stdlib.h>
 #include <stdbool.h>
 #include <unistd.h>
@@ -8,6 +9,8 @@
 #include <sstream>
 #include <sys/resource.h>
 #include <czmq.h>
+#include "json11.hpp"
+#include <fstream>
 #include "common/util.h"
 #include "common/timing.h"
 #include "common/swaglog.h"
@@ -18,6 +21,8 @@
 #include "ui.hpp"
 #include "cereal/gen/cpp/arne182.capnp.h"
 #include "dashcam.h"
+
+std::map<std::string, int> DF_TO_IDX = {{"close", 0}, {"normal", 1}, {"far", 2}, {"auto", 3}};
 
 static void ui_set_brightness(UIState *s, int brightness) {
   static int last_brightness = -1;
@@ -90,6 +95,33 @@ static void update_offroad_layout_state(UIState *s) {
 #endif
 }
 
+// e2e model button.
+static void send_ml(UIState *s, bool enabled) {
+  capnp::MallocMessageBuilder msg;
+  auto EventArne182 = msg.initRoot<cereal::EventArne182>();
+  EventArne182.setLogMonoTime(nanos_since_boot());
+  auto mlStatus = EventArne182.initModelLongButton();
+  mlStatus.setEnabled(enabled);
+  s->pm->send("modelLongButton", msg);
+}
+
+static bool handle_ml_touch(UIState *s, int touch_x, int touch_y) {
+  //mlButton manager
+  if ((s->awake && s->vision_connected && s->status != STATUS_STOPPED)) {
+    int padding = 40;
+    int btn_w = 400;
+    int btn_h = 138;
+    int xs[2] = {1920 / 2 + 75 - btn_w / 2, 1920 / 2 + 75 + btn_w / 2};
+    int y_top = 915 - btn_h / 2;
+    if (xs[0] <= touch_x + padding && touch_x - padding <= xs[1] && y_top - padding <= touch_y) {
+      s->scene.mlButtonEnabled = !s->scene.mlButtonEnabled;
+      send_ml(s, s->scene.mlButtonEnabled);
+      return true;
+    }
+  }
+    return false;
+}
+
 //dfButton manager
 static void send_df(UIState *s, int status) {
   capnp::MallocMessageBuilder msg;
@@ -103,7 +135,9 @@ static void send_df(UIState *s, int status) {
 static bool handle_df_touch(UIState *s, int touch_x, int touch_y) {
   if (s->awake && s->vision_connected && s->status != STATUS_STOPPED) {
     int padding = 40;
-    if ((1660 - padding <= touch_x) && (855 - padding <= touch_y)) {
+    int btn_x_1 = 1660 - 200 - 175;
+    int btn_x_2 = 1660 - 50 - 175;
+    if ((btn_x_1 - padding <= touch_x) && (touch_x <= btn_x_2 + padding) && (855 - padding <= touch_y)) {
       s->scene.uilayout_sidebarcollapsed = true;  // collapse sidebar when tapping df button
       s->scene.dfButtonStatus++;
       if (s->scene.dfButtonStatus > 3) {
@@ -196,12 +230,12 @@ static void ui_init(UIState *s) {
 
   pthread_mutex_init(&s->lock, NULL);
   s->sm = new SubMaster({"model", "controlsState", "uiLayoutState", "liveCalibration", "radarState", "thermal",
-                         "health", "ubloxGnss", "driverState", "dMonitoringState", "carState", "gpsLocationExternal"
+                         "health", "ubloxGnss", "driverState", "dMonitoringState", "carState", "gpsLocationExternal", "liveMpc"
 #ifdef SHOW_SPEEDLIMIT
                                     , "liveMapData"
 #endif
   });
-  s->pm = new PubMaster({"offroadLayout", "dynamicFollowButton"});
+  s->pm = new PubMaster({"offroadLayout", "dynamicFollowButton", "modelLongButton"});
 
   s->ipc_fd = -1;
   s->scene.satelliteCount = -1;
@@ -211,6 +245,8 @@ static void ui_init(UIState *s) {
   // init display
   s->fb = framebuffer_init("ui", 0, true, &s->fb_w, &s->fb_h);
   assert(s->fb);
+  
+  s->livempc_or_radarstate_changed = false;
 
   set_awake(s, true);
 
@@ -244,7 +280,22 @@ static void ui_init_vision(UIState *s, const VisionStreamBufs back_bufs,
   s->scene.gps_planner_active = false;
 
   // Dynamic Follow
-  s->scene.dfButtonStatus = 0;
+  // from shane's todo: run opparams first (in main()?) to ensure json values exist https://github.com/ShaneSmiskol/openpilot/commit/90ded3f5689daf4f3622973dfd4c63ba369573fd#diff-f7a9e034709fadfe2b5065cde2766598
+ std::ifstream op_params_file("/data/op_params.json");
+ std::string op_params_content((std::istreambuf_iterator<char>(op_params_file)),
+                               (std::istreambuf_iterator<char>()));
+
+ std::string err;
+ auto json = json11::Json::parse(op_params_content, err);
+ if (!json.is_null() && err.empty()) {
+   printf("successfully parsed opParams json\n");
+   s->scene.dfButtonStatus = DF_TO_IDX[json["dynamic_follow"].string_value()];
+//    printf("dfButtonStatus: %d\n", s->scene.dfButtonStatus);
+ } else {  // error parsing json
+   printf("ERROR PARSING OPPARAMS JSON!\n");
+   s->scene.dfButtonStatus = 0;
+ }
+  s->scene.mlButtonEnabled = false;
 
   s->rgb_width = back_bufs.width;
   s->rgb_height = back_bufs.height;
@@ -385,16 +436,16 @@ void handle_message(UIState *s, SubMaster &sm) {
   if (sm.updated("model")) {
     read_model(scene.model, sm["model"].getModel());
   }
-  // else if (which == cereal::Event::LIVE_MPC) {
-  //   auto data = event.getLiveMpc();
-  //   auto x_list = data.getX();
-  //   auto y_list = data.getY();
-  //   for (int i = 0; i < 50; i++){
-  //     scene.mpc_x[i] = x_list[i];
-  //     scene.mpc_y[i] = y_list[i];
-  //   }
-  //   s->livempc_or_radarstate_changed = true;
-  // }
+  if (sm.updated("liveMpc")) {
+     auto data = sm["liveMpc"].getLiveMpc();
+     auto x_list = data.getX();
+     auto y_list = data.getY();
+     for (int i = 0; i < 50; i++){
+       scene.mpc_x[i] = x_list[i];
+       scene.mpc_y[i] = y_list[i];
+     }
+     s->livempc_or_radarstate_changed = true;
+  }
   if (sm.updated("uiLayoutState")) {
     auto data = sm["uiLayoutState"].getUiLayoutState();
     s->active_app = data.getActiveApp();
@@ -852,8 +903,10 @@ int main(int argc, char* argv[]) {
       set_awake(s, true);
       handle_sidebar_touch(s, touch_x, touch_y);
 
-      if (!handle_df_touch(s, touch_x, touch_y) && !handle_df_touch(s, touch_x, touch_y)) {  // disables sidebar from popping out when tapping df or ls button
+      if (!handle_df_touch(s, touch_x, touch_y) && !handle_df_touch(s, touch_x, touch_y) && !handle_ml_touch(s, touch_x, touch_y)) {  // disables sidebar from popping out when tapping df or ls button
         handle_vision_touch(s, touch_x, touch_y);
+      } else {
+      s->scene.uilayout_sidebarcollapsed = true;  // collapse sidebar when tapping any SA button
       }
     }
 
