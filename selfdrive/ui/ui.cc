@@ -366,6 +366,10 @@ void handle_message(UIState *s, SubMaster &sm) {
   if (s->started && sm.updated("controlsState")) {
     auto event = sm["controlsState"];
     auto data = event.getControlsState();
+    auto datad = data.getLateralControlState();
+    auto pdata = datad.getPidState();
+    auto qdata = datad.getLqrState();
+    auto rdata = datad.getIndiState();
     scene.controls_state = event.getControlsState();
     s->controls_timeout = 1 * UI_FREQ;
     scene.frontview = scene.controls_state.getRearViewCam();
@@ -410,6 +414,10 @@ void handle_message(UIState *s, SubMaster &sm) {
       }
     }
     scene.steerOverride = data.getSteerOverride();
+    float q = qdata.getOutput();
+    float r = rdata.getOutput();
+    float p = pdata.getOutput();
+    scene.output_scale = q + p + r;
     scene.angleSteers = data.getAngleSteers();
     scene.angleSteersDes = data.getAngleSteersDes();
   }
@@ -506,6 +514,9 @@ void handle_message(UIState *s, SubMaster &sm) {
     scene.brakeLights = data.getBrakeLights();
     scene.leftBlinker = data.getLeftBlinker();
     scene.rightBlinker = data.getRightBlinker();
+    scene.leftblindspot = data.getLeftBlindspot();
+    scene.rightblindspot = data.getRightBlindspot();
+    scene.gear = data.getGearShifter();
   }
 
   s->started = scene.thermal.getStarted() || s->preview_started;
@@ -918,7 +929,12 @@ int main(int argc, char* argv[]) {
         s->controls_timeout = 5 * UI_FREQ;
       }
     } else {
-      set_awake(s, true);
+      // blank screen on reverse gear
+      if (s->scene.gear == cereal::CarState::GearShifter::REVERSE) {
+        set_awake(s, false);
+      } else {
+        set_awake(s, true);
+      }
       // Car started, fetch a new rgb image from ipc
       if (s->vision_connected){
         ui_update(s);
