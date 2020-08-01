@@ -864,7 +864,7 @@ EVENTSARNE182 = {
       "Using profile:",
       "",
       AlertStatus.normal, AlertSize.mid,
-      Priority.LOWER, VisualAlert.none, AudibleAlert.chimeWarning1, 0.2, 0., 2.),
+      Priority.LOWER, VisualAlert.none, AudibleAlert.chimeWarning1, 0.4, 0., 2.),
   },
 
   "dfButtonAlertSilent": {
@@ -954,6 +954,14 @@ EVENTSARNE182 = {
       AlertStatus.critical, AlertSize.full,
       Priority.HIGH, VisualAlert.steerRequired, AudibleAlert.none, 2.2, 3., 4.),
     ET.NO_ENTRY: NoEntryAlert("Reverse Gear"),
+  },
+
+    "modelLongAlert": {
+    ET.WARNING: Alert(
+      "Model longitudinal ",
+      "Remain alert",
+      AlertStatus.normal, AlertSize.mid,
+      Priority.LOW, VisualAlert.none, AudibleAlert.chimeWarning1, .4, 0., 2.),
   },
 
 }

@@ -564,9 +564,9 @@ def main():
     ("LaneChangeEnabled", "1"),
     ("IsDriverViewEnabled", "0"),
     ("DisablePowerDownTime", "30"),
-    ("DistanceTraveled", "0"),
-    ("DistanceTraveledEngaged", "0"),
-    ("DistanceTraveledOverride", "0"),
+    ("DistanceTraveled", "1"),
+    ("DistanceTraveledEngaged", "1"),
+    ("DistanceTraveledOverride", "1"),
   ]
 
   # set unset params

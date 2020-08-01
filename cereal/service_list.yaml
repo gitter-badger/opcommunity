@@ -89,6 +89,7 @@ latControl: [8210, false, 20.]
 phantomData: [8211, false, 20.]
 thermalonline: [8212, false, 1., 1]
 ipAddress: [8213, false, 0.]
+modelLongButton: [8214, false, 0.]
 
 #alca Events
 alcaStatus: [8214, false, 0.]
