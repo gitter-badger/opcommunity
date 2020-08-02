@@ -166,7 +166,7 @@ bool screen_lock_button_clicked(int touch_x, int touch_y, dashcam_element el) {
   }
 
   if (touch_x >= el.pos_x && touch_x <= el.pos_x + el.width) {
-    if (touch_y >= el.pos_y && touch_y <= el.pos_y + el.height) {
+    if (touch_y >= el.pos_y - 50 && touch_y <= el.pos_y + el.height) {
       return true;
     }
   }
@@ -175,7 +175,7 @@ bool screen_lock_button_clicked(int touch_x, int touch_y, dashcam_element el) {
 
 bool screen_button_clicked(int touch_x, int touch_y) {
   if (touch_x >= 1660 && touch_x <= 1810) {
-    if (touch_y >= 885 && touch_y <= 1030) {
+    if (touch_y >= 835 && touch_y <= 1030) {
       return true;
     }
   }

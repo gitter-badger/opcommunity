@@ -126,7 +126,11 @@ typedef struct UIScene {
   bool rightBlinker;
   int blinker_blinkingrate;
   std::string ipAddr;
-
+  float output_scale;
+  cereal::CarState::GearShifter gear;
+  bool rightblindspot;
+  bool leftblindspot;
+  
   bool is_rhd;
   bool map_valid;
   bool uilayout_sidebarcollapsed;

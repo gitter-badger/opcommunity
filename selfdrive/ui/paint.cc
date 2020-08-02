@@ -218,9 +218,72 @@ static void ui_draw_track(UIState *s, bool is_mpc, track_vertices_data *pvd) {
   NVGpaint track_bg;
   if (is_mpc) {
     // Draw colored MPC track
-    const uint8_t *clr = bg_colors[s->status];
+    //const uint8_t *clr = bg_colors[s->status];
+    if (s->scene.steerOverride) {
+      track_bg = nvgLinearGradient(s->vg, vwp_w, vwp_h, vwp_w, vwp_h*.4,
+        nvgRGBA(0, 191, 255, 255), nvgRGBA(0, 95, 128, 50));
+    } else {
+      int torque_scale = (int)fabs(510*(float)s->scene.output_scale);
+      int red_lvl = fmin(255, torque_scale);
+      int green_lvl = fmin(255, 510-torque_scale);
+      track_bg = nvgLinearGradient(s->vg, vwp_w, vwp_h, vwp_w, vwp_h*.4,
+        nvgRGBA(          red_lvl,            green_lvl,  0, 255),
+        nvgRGBA((int)(0.5*red_lvl), (int)(0.5*green_lvl), 0, 50));
+    }
+  } else {
+    // Draw white vision track
     track_bg = nvgLinearGradient(s->vg, vwp_w, vwp_h, vwp_w, vwp_h*.4,
-      nvgRGBA(clr[0], clr[1], clr[2], 255), nvgRGBA(clr[0], clr[1], clr[2], 255/2));
+      COLOR_WHITE, COLOR_WHITE_ALPHA(0));
+  }
+  nvgFillPaint(s->vg, track_bg);
+  nvgFill(s->vg);
+}
+
+static void ui_draw_track_right(UIState *s, bool is_mpc, track_vertices_data *pvd) {
+ if (pvd->cnt == 0) return;
+
+  nvgBeginPath(s->vg);
+  float offset = 0;
+  nvgMoveTo(s->vg, pvd->v[0].x + offset, pvd->v[0].y);
+  for (int i=1; i<pvd->cnt; i++) {
+    if (pvd->v[i].y < pvd->v[i-1].y) offset = 100;
+    nvgLineTo(s->vg, pvd->v[i].x + offset, pvd->v[i].y);
+  }
+  nvgClosePath(s->vg);
+
+  NVGpaint track_bg;
+  if (is_mpc) {
+    // Draw colored MPC track
+    //const uint8_t *clr = bg_colors[s->status];
+    track_bg = nvgLinearGradient(s->vg, vwp_w, vwp_h, vwp_w, vwp_h*.4,
+        nvgRGBA(155, 0, 0, 255), nvgRGBA(55, 0, 0, 50));
+  } else {
+    // Draw white vision track
+    track_bg = nvgLinearGradient(s->vg, vwp_w, vwp_h, vwp_w, vwp_h*.4,
+      COLOR_WHITE, COLOR_WHITE_ALPHA(0));
+  }
+  nvgFillPaint(s->vg, track_bg);
+  nvgFill(s->vg);
+}
+
+static void ui_draw_track_left(UIState *s, bool is_mpc, track_vertices_data *pvd) {
+ if (pvd->cnt == 0) return;
+
+  nvgBeginPath(s->vg);
+  float offset = -100;
+  nvgMoveTo(s->vg, pvd->v[0].x + offset, pvd->v[0].y);
+  for (int i=1; i<pvd->cnt; i++) {
+    if (pvd->v[i].y < pvd->v[i-1].y) offset = 0;
+    nvgLineTo(s->vg, pvd->v[i].x + offset, pvd->v[i].y);
+  }
+  nvgClosePath(s->vg);
+
+  NVGpaint track_bg;
+  if (is_mpc) {
+    // Draw colored MPC track
+    //const uint8_t *clr = bg_colors[s->status];
+    track_bg = nvgLinearGradient(s->vg, vwp_w, vwp_h, vwp_w, vwp_h*.4,
+        nvgRGBA(155, 0, 0, 255), nvgRGBA(55, 0, 0, 50));
   } else {
     // Draw white vision track
     track_bg = nvgLinearGradient(s->vg, vwp_w, vwp_h, vwp_w, vwp_h*.4,
@@ -339,6 +402,12 @@ static void ui_draw_vision_lanes(UIState *s) {
   ui_draw_track(s, false, &s->track_vertices[0]);
   if (scene->controls_state.getEnabled()) {
     // Draw MPC path when engaged
+    if (scene->rightblindspot){
+      ui_draw_track_right(s, true, &s->track_vertices[1]);
+    }
+    if (scene->leftblindspot){
+      ui_draw_track_left(s, true, &s->track_vertices[1]);
+    }
     ui_draw_track(s, true, &s->track_vertices[1]);
   }
 }
