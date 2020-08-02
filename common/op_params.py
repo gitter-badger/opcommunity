@@ -36,8 +36,8 @@ class opParams:
       self.default_params = {'camera_offset': {'default': 0.06}}
     """
 
-    self.default_params = {'awareness_factor': {'default': 10., 'allowed_types': [float, int], 'description': 'Multiplier for the awareness times', 'live': False},
-                           'alca_min_speed': {'default': 20, 'allowed_types': [float, int], 'description': 'Speed limit to start ALC in MPH', 'live': False},
+    self.default_params = {'awareness_factor': {'default': 99., 'allowed_types': [float, int], 'description': 'Multiplier for the awareness times', 'live': False},
+                           'alca_min_speed': {'default': 5, 'allowed_types': [float, int], 'description': 'Speed limit to start ALC in MPH', 'live': False},
                            'alca_nudge_required': {'default': False, 'allowed_types': [bool], 'description': "Require nudge to start ALC", 'live': False},
                            'camera_offset': {'default': 0.06, 'allowed_types': [float, int], 'description': 'Your camera offset to use in lane_planner.py', 'live': True},
                            'curvature_factor': {'default': 1.2, 'allowed_types': [float, int], 'description': 'Multiplier for the curvature slowdown. Increase for less braking.', 'live': False},
