@@ -66,7 +66,7 @@ class opParams:
                            'spairrowtuning': {'default': False, 'allowed_types': [bool], 'description': 'Better Tuning for Corolla', 'live': False},
                            'speed_offset': {'default': 0, 'allowed_types': [float, int], 'description': 'Speed limit offset in m/s', 'live': True},
                            'traffic_light_alerts': {'default': False, 'allowed_types': [bool], 'description': "Switch off the traffic light alerts", 'live': False},
-                           'traffic_lights': {'default': True, 'allowed_types': [bool], 'description': "Should Openpilot stop for traffic lights", 'live': False},
+                           'traffic_lights': {'default': False, 'allowed_types': [bool], 'description': "Should Openpilot stop for traffic lights", 'live': False},
                            'traffic_lights_without_direction': {'default': False, 'allowed_types': [bool], 'description': "Should Openpilot stop for traffic lights without a direction specified", 'live': False},
                            'use_car_caching': {'default': True, 'allowed_types': [bool], 'description': 'Whether to use fingerprint caching', 'live': False},
                            'min_TR': {'default': None, 'allowed_types': [type(None), float, int], 'description': 'The minimum allowed following distance in seconds. Default is 0.9 seconds.\n'
