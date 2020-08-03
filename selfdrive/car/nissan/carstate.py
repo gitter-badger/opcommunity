@@ -17,21 +17,21 @@ class CarState(CarStateBase):
   def update(self, cp, cp_adas, cp_cam):
     ret = car.CarState.new_message()
 
-    if self.CP.carFingerprint == CAR.XTRAIL:
+    if self.CP.carFingerprint in [CAR.ROGUE, CAR.XTRAIL]:
       ret.gas = cp.vl["GAS_PEDAL"]["GAS_PEDAL"]
     elif self.CP.carFingerprint == CAR.LEAF:
       ret.gas = cp.vl["CRUISE_THROTTLE"]["GAS_PEDAL"]
 
     ret.gasPressed = bool(ret.gas > 3)
 
-    if self.CP.carFingerprint == CAR.XTRAIL:
+    if self.CP.carFingerprint in [CAR.ROGUE, CAR.XTRAIL]:
       ret.brakePressed = bool(cp.vl["DOORS_LIGHTS"]["USER_BRAKE_PRESSED"])
     elif self.CP.carFingerprint == CAR.LEAF:
       ret.brakePressed = bool(cp.vl["BRAKE_PEDAL"]["BRAKE_PEDAL"] > 3)
 
-    if self.CP.carFingerprint == CAR.XTRAIL:
-      ret.brakeLights = bool(cp.vl["DOORS_LIGHTS"]["BRAKE_LIGHT"])
 
+    if self.CP.carFingerprint in [CAR.ROGUE, CAR.XTRAIL]:
+      ret.brakeLights = bool(cp.vl["DOORS_LIGHTS"]["BRAKE_LIGHT"])
     ret.wheelSpeeds.fl = cp.vl["WHEEL_SPEEDS_FRONT"]["WHEEL_SPEED_FL"] * CV.KPH_TO_MS
     ret.wheelSpeeds.fr = cp.vl["WHEEL_SPEEDS_FRONT"]["WHEEL_SPEED_FR"] * CV.KPH_TO_MS
     ret.wheelSpeeds.rl = cp.vl["WHEEL_SPEEDS_REAR"]["WHEEL_SPEED_RL"] * CV.KPH_TO_MS
@@ -43,19 +43,20 @@ class CarState(CarStateBase):
     ret.standstill = ret.vEgoRaw < 0.01
 
     ret.cruiseState.enabled = bool(cp_adas.vl["CRUISE_STATE"]["CRUISE_ENABLED"])
-    if self.CP.carFingerprint == CAR.XTRAIL:
+
+    if self.CP.carFingerprint in [CAR.ROGUE, CAR.XTRAIL]:
+      ret.seatbeltUnlatched = cp.vl["HUD"]["SEATBELT_DRIVER_LATCHED"] == 0
       ret.cruiseState.available = bool(cp_cam.vl["PRO_PILOT"]["CRUISE_ON"])
     elif self.CP.carFingerprint == CAR.LEAF:
+      ret.seatbeltUnlatched = cp.vl["SEATBELT"]["SEATBELT_DRIVER_LATCHED"] == 0
       ret.cruiseState.available = bool(cp.vl["CRUISE_THROTTLE"]["CRUISE_AVAILABLE"])
 
-    # TODO: Find mph/kph bit on XTRAIL until then, assume xtrail is kph.
-    # Unable to change kph to mph on the xtrail, need a rogue to test it on
     speed = cp_adas.vl["PROPILOT_HUD"]["SET_SPEED"]
     if speed != 255:
-      if self.CP.carFingerprint == CAR.XTRAIL:
-        conversion = CV.KPH_TO_MS
-      else:
+      if self.CP.carFingerprint == CAR.LEAF:
         conversion = CV.MPH_TO_MS if cp.vl["HUD_SETTINGS"]["SPEED_MPH"] else CV.KPH_TO_MS
+      else:
+        conversion = CV.MPH_TO_MS if cp.vl["HUD"]["SPEED_MPH"] else CV.KPH_TO_MS
       speed -= 1  # Speed on HUD is always 1 lower than actually sent on can bus
       ret.cruiseState.speed = speed * conversion
 
@@ -176,7 +177,7 @@ class CarState(CarStateBase):
       ]
 
     return CANParser(DBC[CP.carFingerprint]['pt'], signals, checks, 0)
-    
+
   @staticmethod
   def get_can_parser_init(CP):
     # this function generates lists for signal, messages and initial values
@@ -215,12 +216,15 @@ class CarState(CarStateBase):
       ("DOORS_LIGHTS", 10),
     ]
 
-    if CP.carFingerprint == CAR.XTRAIL:
+    if CP.carFingerprint in [CAR.ROGUE, CAR.XTRAIL]:
       signals += [
         ("USER_BRAKE_PRESSED", "DOORS_LIGHTS", 1),
         ("BRAKE_LIGHT", "DOORS_LIGHTS", 1),
 
         ("GAS_PEDAL", "GAS_PEDAL", 0),
+
+        ("SEATBELT_DRIVER_LATCHED", "HUD", 0),
+        ("SPEED_MPH", "HUD", 0),
 
         ("PROPILOT_BUTTON", "CRUISE_THROTTLE", 0),
         ("CANCEL_BUTTON", "CRUISE_THROTTLE", 0),
@@ -249,6 +253,8 @@ class CarState(CarStateBase):
         ("GAS_PEDAL", "CRUISE_THROTTLE", 0),
         ("CRUISE_AVAILABLE", "CRUISE_THROTTLE", 0),
         ("SPEED_MPH", "HUD_SETTINGS", 0),
+
+        ("SEATBELT_DRIVER_LATCHED", "SEATBELT", 0),
 
         # Copy other values, we use this to cancel
         ("CANCEL_SEATBELT", "CANCEL_MSG", 0),
@@ -357,7 +363,8 @@ class CarState(CarStateBase):
   @staticmethod
   def get_cam_can_parser(CP):
     signals = []
-    if CP.carFingerprint == CAR.XTRAIL:
+
+    if CP.carFingerprint in [CAR.ROGUE, CAR.XTRAIL]:
       signals += [
         ("CRUISE_ON", "PRO_PILOT", 0),
       ]

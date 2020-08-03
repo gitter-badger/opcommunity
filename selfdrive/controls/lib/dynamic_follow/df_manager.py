@@ -51,7 +51,7 @@ class dfManager:
       self.first_run = False
 
     button_status = self.sm['dynamicFollowButton'].status
-    df_out.user_profile = (button_status + self.offset) % len(self.df_profiles.to_profile)
+    df_out.user_profile = button_status
     df_out.user_profile_text = self.df_profiles.to_profile[df_out.user_profile]
 
     if self.cur_user_profile != df_out.user_profile:

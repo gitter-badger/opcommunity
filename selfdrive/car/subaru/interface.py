@@ -12,7 +12,7 @@ class CarInterface(CarInterfaceBase):
     return float(accel) / 4.0
 
   @staticmethod
-  def get_params(candidate, fingerprint=gen_empty_fingerprint(), has_relay=False, car_fw=[]):
+  def get_params(candidate, fingerprint=gen_empty_fingerprint(), has_relay=False, car_fw=[]):  # pylint: disable=dangerous-default-value
     ret = CarInterfaceBase.get_std_params(candidate, fingerprint, has_relay)
 
     ret.carName = "subaru"
@@ -29,7 +29,17 @@ class CarInterface(CarInterfaceBase):
     ret.steerRateCost = 0.7
     ret.steerLimitTimer = 0.4
 
-    if candidate in [CAR.IMPREZA]:
+    if candidate == CAR.ASCENT:
+      ret.mass = 2031. + STD_CARGO_KG
+      ret.wheelbase = 2.89
+      ret.centerToFront = ret.wheelbase * 0.5
+      ret.steerRatio = 13.5
+      ret.steerActuatorDelay = 0.3   # end-to-end angle controller
+      ret.lateralTuning.pid.kf = 0.00003
+      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0., 20.], [0., 20.]]
+      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.0025, 0.1], [0.00025, 0.01]]
+
+    if candidate == CAR.IMPREZA:
       ret.mass = 1568. + STD_CARGO_KG
       ret.wheelbase = 2.67
       ret.centerToFront = ret.wheelbase * 0.5
@@ -37,6 +47,16 @@ class CarInterface(CarInterfaceBase):
       ret.steerActuatorDelay = 0.4   # end-to-end angle controller
       ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP, ret.lateralTuning.pid.kfBP = [[0., 20.], [0., 20.], [0.]]
       ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV, ret.lateralTuning.pid.kfV = [[0.2, 0.3], [0.02, 0.03], [0.00005]]
+
+    if candidate == CAR.FORESTER:
+      ret.mass = 1568. + STD_CARGO_KG
+      ret.wheelbase = 2.67
+      ret.centerToFront = ret.wheelbase * 0.5
+      ret.steerRatio = 17           # learned, 14 stock
+      ret.steerActuatorDelay = 0.1
+      ret.lateralTuning.pid.kf = 0.000038
+      ret.lateralTuning.pid.kiBP, ret.lateralTuning.pid.kpBP = [[0., 14., 23.], [0., 14., 23.]]
+      ret.lateralTuning.pid.kpV, ret.lateralTuning.pid.kiV = [[0.01, 0.065, 0.2], [0.001, 0.015, 0.025]]
 
     # TODO: get actual value, for now starting with reasonable value for
     # civic and scaling by mass and wheelbase
@@ -66,12 +86,9 @@ class CarInterface(CarInterfaceBase):
     be.type = car.CarState.ButtonEvent.Type.accelCruise
     buttonEvents.append(be)
 
-    ret.events, ret_arne182.events = self.create_common_events(ret, extra_gears=[car.CarState.GearShifter.unknown])
-
-    self.gas_pressed_prev = ret.gasPressed
-    self.brake_pressed_prev = ret.brakePressed
-    self.cruise_enabled_prev = ret.cruiseState.enabled
-
+    events, events_arne182 = self.create_common_events(ret, extra_gears=[car.CarState.GearShifter.unknown])
+    ret.events = events.to_msg()
+    ret_arne182.events = events_arne182.to_msg()
     self.CS.out = ret.as_reader()
     return self.CS.out, ret_arne182.as_reader()
 

@@ -15,6 +15,7 @@ from selfdrive.controls.lib.speed_smoother import speed_smoother
 from selfdrive.controls.lib.longcontrol import LongCtrlState, MIN_CAN_SPEED
 from selfdrive.controls.lib.fcw import FCWChecker
 from selfdrive.controls.lib.long_mpc import LongitudinalMpc
+from selfdrive.controls.lib.drive_helpers import V_CRUISE_MAX
 from selfdrive.controls.lib.long_mpc_model import LongitudinalMpcModel
 from common.travis_checker import travis
 from common.op_params import opParams
@@ -30,6 +31,7 @@ if not travis:
 else:
   curvature_factor = 1.0
 
+
 MAX_SPEED = 255.0
 NO_CURVATURE_SPEED = 90.0
 
@@ -41,7 +43,7 @@ AWARENESS_DECEL = -0.2     # car smoothly decel at .2m/s^2 when user is distract
 # make sure these accelerations are smaller than mpc limits
 _A_CRUISE_MIN_V_ECO = [-1.0, -0.7, -0.6, -0.5, -0.3]
 _A_CRUISE_MIN_V_SPORT = [-3.0, -2.6, -2.3, -2.0, -1.0]
-_A_CRUISE_MIN_V_FOLLOWING = [-4.0, -4.0, -3.5, -2.5, -2.0]
+_A_CRUISE_MIN_V_FOLLOWING = [-3.0, -2.5, -2.0, -1.5, -1.0]
 _A_CRUISE_MIN_V = [-2.0, -1.5, -1.0, -0.7, -0.5]
 _A_CRUISE_MIN_BP = [0.0, 5.0, 10.0, 20.0, 55.0]
 
@@ -54,7 +56,7 @@ _A_CRUISE_MAX_V_FOLLOWING = [1.6, 1.4, 1.4, .7, .3]
 _A_CRUISE_MAX_BP = [0., 5., 10., 20., 55.]
 
 # Lookup table for turns
-_A_TOTAL_MAX_V = [3.3, 3.0, 3.9]
+_A_TOTAL_MAX_V = [3.5, 4.0, 5.0]
 _A_TOTAL_MAX_BP = [0., 25., 55.]
 
 # 75th percentile
@@ -128,7 +130,7 @@ class Planner():
     self.offset = 0
     self.last_time = 0
 
-  def choose_solution(self, v_cruise_setpoint, enabled, lead_1, lead_2, steeringAngle):
+  def choose_solution(self, v_cruise_setpoint, enabled, lead_1, lead_2, steeringAngle, model_enabled):
     center_x = -2.5 # Wheel base 2.5m
     lead1_check = True
     mpc_offset = opParams().get('mpc_offset', default=5.0)
@@ -147,8 +149,8 @@ class Planner():
         solutions['mpc1'] = self.mpc1.v_mpc
       if self.mpc2.prev_lead_status and lead2_check:
         solutions['mpc2'] = self.mpc2.v_mpc
-      if self.mpc_model.valid:
-        if self.mpc_model.v_mpc > 13.0: 
+      if self.mpc_model.valid and model_enabled:
+        if self.mpc_model.v_mpc > 13.0:
           solutions['model'] = NO_CURVATURE_SPEED
         else:
           solutions['model'] = self.mpc_model.v_mpc + mpc_offset
@@ -170,20 +172,20 @@ class Planner():
       elif slowest == 'model':
         self.v_acc = self.mpc_model.v_mpc + mpc_offset
         self.a_acc = self.mpc_model.a_mpc
-        print("Model Speed kph")
-        print(self.mpc_model.v_mpc*3.6)
+        #print("Model Speed kph")
+        #print(self.mpc_model.v_mpc*3.6)
 
     self.v_acc_future = v_cruise_setpoint
     if lead1_check:
       self.v_acc_future = min([self.mpc1.v_mpc_future, self.v_acc_future, self.mpc_model.v_mpc_future + mpc_offset])
     if lead2_check:
       self.v_acc_future = min([self.mpc2.v_mpc_future, self.v_acc_future, self.mpc_model.v_mpc_future + mpc_offset])
-    
+
 
   def update(self, sm, pm, CP, VM, PP, arne_sm):
     """Gets called when new radarState is available"""
     cur_time = sec_since_boot()
-    
+
     # we read offset value every 5 seconds
     fixed_offset = 0.0
     if not travis:
@@ -197,7 +199,7 @@ class Planner():
         self.osm = self.params.get("LimitSetSpeed", encoding='utf8') == "1"
         self.last_time = 0
       self.last_time = self.last_time + 1
-      
+
     gas_button_status = arne_sm['arne182Status'].gasbuttonstatus
     v_ego = sm['carState'].vEgo
     blinkers = sm['carState'].leftBlinker or sm['carState'].rightBlinker
@@ -217,22 +219,24 @@ class Planner():
     long_control_state = sm['controlsState'].longControlState
     v_cruise_kph = sm['controlsState'].vCruise
     force_slow_decel = sm['controlsState'].forceDecel
+
+    v_cruise_kph = min(v_cruise_kph, V_CRUISE_MAX)
     v_cruise_setpoint = v_cruise_kph * CV.KPH_TO_MS
 
     lead_1 = sm['radarState'].leadOne
     lead_2 = sm['radarState'].leadTwo
 
     enabled = (long_control_state == LongCtrlState.pid) or (long_control_state == LongCtrlState.stopping)
-    
-    following = (lead_1.status and lead_1.dRel < 40.0 and lead_1.vRel < 0.0) or (lead_2.status and lead_2.dRel < 40.0 and lead_2.vRel < 0.0)
-     
+
+    following = (lead_1.status and lead_1.dRel < 45.0 and lead_1.vRel < 0.0) or (lead_2.status and lead_2.dRel < 45.0 and lead_2.vRel < 0.0) #lead_1.status and lead_1.dRel < 45.0 and lead_1.vLeadK > v_ego and lead_1.aLeadK > 0.0
+
     if gas_button_status == 1:
       speed_ahead_distance = 150
     elif gas_button_status == 2:
       speed_ahead_distance = 350
     else:
       speed_ahead_distance = default_brake_distance
-      
+
     v_speedlimit = NO_CURVATURE_SPEED
     v_curvature_map = NO_CURVATURE_SPEED
     v_speedlimit_ahead = NO_CURVATURE_SPEED
@@ -314,11 +318,11 @@ class Planner():
         accel_limits[1] = required_decel
         self.a_acc_start = required_decel
         v_speedlimit_ahead = v_ego
-      
+
       v_cruise_setpoint = min([v_cruise_setpoint, v_curvature_map, v_speedlimit, v_speedlimit_ahead])
       #if (self.mpc1.prev_lead_status and self.mpc1.v_mpc < v_ego*0.99) or (self.mpc2.prev_lead_status and self.mpc2.v_mpc < v_ego*0.99):
       #  v_cruise_setpoint = v_ego
-        
+
       self.v_cruise, self.a_cruise = speed_smoother(self.v_acc_start, self.a_acc_start,
                                                     v_cruise_setpoint,
                                                     accel_limits_turns[1], accel_limits_turns[0],
@@ -350,7 +354,7 @@ class Planner():
                           sm['model'].longitudinal.speeds,
                           sm['model'].longitudinal.accelerations)
 
-    self.choose_solution(v_cruise_setpoint, enabled, lead_1, lead_2, sm['carState'].steeringAngle)
+    self.choose_solution(v_cruise_setpoint, enabled, lead_1, lead_2, sm['carState'].steeringAngle, arne_sm['modelLongButton'].enabled)
 
     # determine fcw
     if self.mpc1.new_lead:

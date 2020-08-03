@@ -25,11 +25,11 @@ const CanMsg GM_TX_MSGS[] = {{384, 0, 4}, {1033, 0, 7}, {1034, 0, 7}, {715, 0, 8
 
 // TODO: do checksum and counter checks. Add correct timestep, 0.1s for now.
 AddrCheckStruct gm_rx_checks[] = {
-  {.msg = {{388, 0, 8}}, .expected_timestep = 100000U},
-  {.msg = {{842, 0, 5}}, .expected_timestep = 100000U},
-  {.msg = {{481, 0, 7}}, .expected_timestep = 100000U},
-  {.msg = {{241, 0, 6}}, .expected_timestep = 100000U},
-  {.msg = {{417, 0, 7}}, .expected_timestep = 100000U},
+  {.msg = {{388, 0, 8, .expected_timestep = 100000U}}},
+  {.msg = {{842, 0, 5, .expected_timestep = 100000U}}},
+  {.msg = {{481, 0, 7, .expected_timestep = 100000U}}},
+  {.msg = {{241, 0, 6, .expected_timestep = 100000U}}},
+  {.msg = {{417, 0, 7, .expected_timestep = 100000U}}},
 };
 const int GM_RX_CHECK_LEN = sizeof(gm_rx_checks) / sizeof(gm_rx_checks[0]);
 
@@ -37,8 +37,6 @@ static int gm_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
 
   bool valid = addr_safety_check(to_push, gm_rx_checks, GM_RX_CHECK_LEN,
                                  NULL, NULL, NULL);
-
-  bool unsafe_allow_gas = unsafe_mode & UNSAFE_DISABLE_DISENGAGE_ON_GAS;
 
   if (valid && (GET_BUS(to_push) == 0)) {
     int addr = GET_ADDR(to_push);
@@ -72,25 +70,15 @@ static int gm_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
       }
     }
 
-    // exit controls on rising edge of brake press or on brake press when
     // speed > 0
     if (addr == 241) {
       // Brake pedal's potentiometer returns near-zero reading
       // even when pedal is not pressed
-      bool brake_pressed = GET_BYTE(to_push, 1) >= 10;
-      if (brake_pressed && (!brake_pressed_prev || vehicle_moving)) {
-         controls_allowed = 0;
-      }
-      brake_pressed_prev = brake_pressed;
+      brake_pressed = GET_BYTE(to_push, 1) >= 10;
     }
 
-    // exit controls on rising edge of gas press
     if (addr == 417) {
-      bool gas_pressed = GET_BYTE(to_push, 6) != 0;
-      if (!unsafe_allow_gas && gas_pressed && !gas_pressed_prev) {
-        controls_allowed = 0;
-      }
-      gas_pressed_prev = gas_pressed;
+      gas_pressed = GET_BYTE(to_push, 6) != 0;
     }
 
     // exit controls on regen paddle
@@ -105,9 +93,7 @@ static int gm_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
     // on powertrain bus.
     // 384 = ASCMLKASteeringCmd
     // 715 = ASCMGasRegenCmd
-    if ((safety_mode_cnt > RELAY_TRNS_TIMEOUT) && ((addr == 384) || (addr == 715))) {
-      relay_malfunction_set();
-    }
+    generic_rx_checks(((addr == 384) || (addr == 715)));
   }
   return valid;
 }

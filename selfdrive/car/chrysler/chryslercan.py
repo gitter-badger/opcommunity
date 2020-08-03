@@ -32,7 +32,6 @@ def calc_checksum(data):
       shift = shift >> 1
   return ~checksum & 0xFF
 
-
 def create_lkas_hud(packer, gear, lkas_active, hud_alert, hud_count, lkas_car_model):
   # LKAS_HUD 0x2a6 (678) Controls what lane-keeping icon is displayed.
 
@@ -44,7 +43,7 @@ def create_lkas_hud(packer, gear, lkas_active, hud_alert, hud_count, lkas_car_mo
   lines = 1
   alerts = 0
 
-  if hud_count < (1 *4):  # first 3 seconds, 4Hz
+  if hud_count < (1 * 4):  # first 3 seconds, 4Hz
     alerts = 1
   # CAR.PACIFICA_2018_HYBRID and CAR.PACIFICA_2019_HYBRID
   # had color = 1 and lines = 1 but trying 2017 hybrid style for now.
@@ -73,18 +72,13 @@ def create_lkas_command(packer, apply_steer, moving_fast, frame):
     "LKAS_HIGH_TORQUE": int(moving_fast),
     "COUNTER": frame % 0x10,
   }
-
-  dat = packer.make_can_msg("LKAS_COMMAND", 0, values)[2]
-  checksum = calc_checksum(dat)
-
-  values["CHECKSUM"] = checksum
   return packer.make_can_msg("LKAS_COMMAND", 0, values)
 
 
-def create_wheel_buttons(frame):
+def create_wheel_buttons(packer, frame, cancel=False):
   # WHEEL_BUTTONS (571) Message sent to cancel ACC.
-  start = b"\x01"  # acc cancel set
-  counter = (frame % 10) << 4
-  dat = start + counter.to_bytes(1, 'little') + b"\x00"
-  dat = dat[:-1] + calc_checksum(dat).to_bytes(1, 'little')
-  return make_can_msg(0x23b, dat, 0)
+  values = {
+    "ACC_CANCEL": cancel,
+    "COUNTER": frame % 10
+  }
+  return packer.make_can_msg("WHEEL_BUTTONS", 0, values)

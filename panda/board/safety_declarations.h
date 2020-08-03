@@ -20,14 +20,22 @@ typedef struct {
   int len;
 } CanMsg;
 
-// params and flags about checksum, counter and frequency checks for each monitored address
 typedef struct {
-  // const params
-  const CanMsg msg[3];               // check either messages (e.g. honda steer). Array MUST terminate with an empty struct to know its length.
+  const int addr;
+  const int bus;
+  const int len;
   const bool check_checksum;         // true is checksum check is performed
   const uint8_t max_counter;         // maximum value of the counter. 0 means that the counter check is skipped
   const uint32_t expected_timestep;  // expected time between message updates [us]
+} CanMsgCheck;
+
+// params and flags about checksum, counter and frequency checks for each monitored address
+typedef struct {
+  // const params
+  const CanMsgCheck msg[3];          // check either messages (e.g. honda steer). Array MUST terminate with an empty struct to know its length.
   // dynamic flags
+  bool msg_seen;
+  int index;                         // if multiple messages are allowed to be checked, this stores the index of the first one seen. only msg[msg_index] will be used
   bool valid_checksum;               // true if and only if checksum check is passed
   int wrong_counters;                // counter of wrong counters, saturated between 0 and MAX_WRONG_COUNTERS
   uint8_t last_counter;              // last counter value
@@ -61,6 +69,7 @@ bool addr_safety_check(CAN_FIFOMailBox_TypeDef *to_push,
                        uint8_t (*get_checksum)(CAN_FIFOMailBox_TypeDef *to_push),
                        uint8_t (*compute_checksum)(CAN_FIFOMailBox_TypeDef *to_push),
                        uint8_t (*get_counter)(CAN_FIFOMailBox_TypeDef *to_push));
+void generic_rx_checks(bool stock_ecu_detected);
 void relay_malfunction_set(void);
 void relay_malfunction_reset(void);
 
@@ -87,17 +96,25 @@ bool controls_allowed = false;
 bool relay_malfunction = false;
 bool gas_interceptor_detected = false;
 int gas_interceptor_prev = 0;
+bool gas_pressed = false;
 bool gas_pressed_prev = false;
+bool brake_pressed = false;
 bool brake_pressed_prev = false;
 bool cruise_engaged_prev = false;
+float vehicle_speed = 0;
 bool vehicle_moving = false;
 
-// for torque-based safety modes
+// for safety modes with torque steering control
 int desired_torque_last = 0;       // last desired steer torque
 int rt_torque_last = 0;            // last desired torque for real time check
 struct sample_t torque_meas;       // last 3 motor torques produced by the eps
 struct sample_t torque_driver;     // last 3 driver torques measured
 uint32_t ts_last = 0;
+
+// for safety modes with angle steering control
+uint32_t ts_angle_last = 0;
+int desired_angle_last = 0;
+struct sample_t angle_meas;         // last 3 steer angles
 
 // This can be set with a USB command
 // It enables features we consider to be unsafe, but understand others may have different opinions

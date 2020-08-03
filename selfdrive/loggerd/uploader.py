@@ -26,6 +26,7 @@ UPLOAD_ATTR_VALUE = b'1'
 fake_upload = os.getenv("FAKEUPLOAD") is not None
 
 def raise_on_thread(t, exctype):
+  '''Raises an exception in the threads with id tid'''
   for ctid, tobj in threading._active.items():
     if tobj is t:
       tid = ctid
@@ -33,7 +34,6 @@ def raise_on_thread(t, exctype):
   else:
     raise Exception("Could not find thread")
 
-  '''Raises an exception in the threads with id tid'''
   if not inspect.isclass(exctype):
     raise TypeError("Only types can be raised (not instances)")
 
@@ -135,7 +135,7 @@ class Uploader():
           is_uploaded = getxattr(fn, UPLOAD_ATTR_NAME)
         except OSError:
           cloudlog.event("uploader_getxattr_failed", exc=self.last_exc, key=key, fn=fn)
-          is_uploaded = True # deleter could have deleted
+          is_uploaded = True  # deleter could have deleted
         if is_uploaded:
           continue
 
@@ -167,7 +167,7 @@ class Uploader():
       if url_resp.status_code == 412:
         self.last_resp = url_resp
         return
-        
+
       url_resp_json = json.loads(url_resp.text)
       url = url_resp_json['url']
       headers = url_resp_json['headers']
@@ -175,9 +175,11 @@ class Uploader():
 
       if fake_upload:
         cloudlog.info("*** WARNING, THIS IS A FAKE UPLOAD TO %s ***" % url)
+
         class FakeResponse():
           def __init__(self):
             self.status_code = 200
+
         self.last_resp = FakeResponse()
       else:
         with open(fn, "rb") as f:
@@ -273,8 +275,9 @@ def uploader_fn(exit_event):
     #Don't try and upload to comma servers 
     
     #d = uploader.next_file_to_upload(with_raw=allow_raw_upload and should_upload)
-    #if d is None:
-    #  time.sleep(5)
+    #if d is None:  # Nothing to upload
+    #  offroad = params.get("IsOffroad") == b'1'
+    #  time.sleep(60 if offroad else 5)
     #  continue
 
     #key, fn = d

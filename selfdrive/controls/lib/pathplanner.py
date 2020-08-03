@@ -65,7 +65,6 @@ class PathPlanner():
     self.prev_one_blinker = False
     self.blindspotTrueCounterleft = 0
     self.blindspotTrueCounterright = 0
-    self.posenetValid = True
     self.op_params = opParams()
     self.alca_nudge_required = self.op_params.get('alca_nudge_required', default=True)
     self.alca_min_speed = self.op_params.get('alca_min_speed', default=20.0)
@@ -116,7 +115,12 @@ class PathPlanner():
 
     # Run MPC
     self.angle_steers_des_prev = self.angle_steers_des_mpc
-    VM.update_params(sm['liveParameters'].stiffnessFactor, sm['liveParameters'].steerRatio)
+
+    # Update vehicle model
+    x = max(sm['liveParameters'].stiffnessFactor, 0.1)
+    sr = max(sm['liveParameters'].steerRatio, 0.1)
+    VM.update_params(x, sr)
+
     curvature_factor = VM.curvature_factor(v_ego)
 
     self.LP.parse_model(sm['model'])
@@ -134,19 +138,14 @@ class PathPlanner():
       self.lane_change_state = LaneChangeState.off
       self.lane_change_direction = LaneChangeDirection.none
     else:
-      if sm['carState'].leftBlinker:
-        lane_change_direction = LaneChangeDirection.left
-      elif sm['carState'].rightBlinker:
-        lane_change_direction = LaneChangeDirection.right
-
-      #if self.alca_nudge_required:
       torque_applied = (sm['carState'].steeringPressed and \
-                       ((sm['carState'].steeringTorque > 0 and lane_change_direction == LaneChangeDirection.left and not sm['carState'].leftBlindspot) or \
-                        (sm['carState'].steeringTorque < 0 and lane_change_direction == LaneChangeDirection.right and not sm['carState'].rightBlindspot))) or \
-                       (not self.alca_nudge_required and self.blindspotTrueCounterleft > self.blindspotwait and lane_change_direction == LaneChangeDirection.left) or \
-                       (not self.alca_nudge_required and self.blindspotTrueCounterright > self.blindspotwait and lane_change_direction == LaneChangeDirection.right)
-      #else:
-      #  torque_applied = True
+                       ((sm['carState'].steeringTorque > 0 and self.lane_change_direction == LaneChangeDirection.left and not sm['carState'].leftBlindspot) or \
+                        (sm['carState'].steeringTorque < 0 and self.lane_change_direction == LaneChangeDirection.right and not sm['carState'].rightBlindspot))) or \
+                       (not self.alca_nudge_required and self.blindspotTrueCounterleft > self.blindspotwait and self.lane_change_direction == LaneChangeDirection.left) or \
+                       (not self.alca_nudge_required and self.blindspotTrueCounterright > self.blindspotwait and self.lane_change_direction == LaneChangeDirection.right)
+
+      #blindspot_detected = ((sm['carState'].leftBlindspot and self.lane_change_direction == LaneChangeDirection.left) or
+      #                      (sm['carState'].rightBlindspot and self.lane_change_direction == LaneChangeDirection.right))
 
       lane_change_prob = self.LP.l_lane_change_prob + self.LP.r_lane_change_prob
 
@@ -169,12 +168,12 @@ class PathPlanner():
 
       # starting
       elif self.lane_change_state == LaneChangeState.laneChangeStarting:
-        # fade out over .2s
+        # fade out over .5s
         self.lane_change_ll_prob = max(self.lane_change_ll_prob - 2 * DT_MDL, 0.0)
         # 98% certainty
         if lane_change_prob < 0.02 and self.lane_change_ll_prob < 0.01:
           self.lane_change_state = LaneChangeState.laneChangeFinishing
-        if (self.arne_sm['arne182Status'].rightBlindspot and lane_change_direction == LaneChangeDirection.right) or (self.arne_sm['arne182Status'].leftBlindspot and lane_change_direction == LaneChangeDirection.left):
+        if (self.arne_sm['arne182Status'].rightBlindspot and self.lane_change_direction == LaneChangeDirection.right) or (self.arne_sm['arne182Status'].leftBlindspot and self.lane_change_direction == LaneChangeDirection.left):
           self.lane_change_state = LaneChangeState.preLaneChange
           self.blindspotTrueCounterleft = 0
           self.blindspotTrueCounterright = 0
@@ -183,7 +182,7 @@ class PathPlanner():
       # finishing
       elif self.lane_change_state == LaneChangeState.laneChangeFinishing:
         # fade in laneline over 1s
-        self.lane_change_ll_prob = min(self.lane_change_ll_prob + 0.5 * DT_MDL, 1.0)
+        self.lane_change_ll_prob = min(self.lane_change_ll_prob + DT_MDL, 1.0)
         if one_blinker and self.lane_change_ll_prob > 0.99:
           self.lane_change_state = LaneChangeState.preLaneChange
           self.blindspotTrueCounterleft = 0
@@ -263,9 +262,6 @@ class PathPlanner():
     plan_send.pathPlan.angleOffset = float(sm['liveParameters'].angleOffsetAverage)
     plan_send.pathPlan.mpcSolutionValid = bool(plan_solution_valid)
     plan_send.pathPlan.paramsValid = bool(sm['liveParameters'].valid)
-    plan_send.pathPlan.sensorValid = bool(sm['liveParameters'].sensorValid)
-    plan_send.pathPlan.posenetValid = bool(sm['liveParameters'].posenetValid) or self.posenetValid
-    self.posenetValid = bool(sm['liveParameters'].posenetValid)
 
     plan_send.pathPlan.desire = desire
     plan_send.pathPlan.laneChangeState = self.lane_change_state

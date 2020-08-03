@@ -16,8 +16,8 @@ const uint32_t TOYOTA_RT_INTERVAL = 250000;    // 250ms between real time checks
 const int TOYOTA_MAX_ACCEL = 3500;        // 3.5 m/s2
 const int TOYOTA_MIN_ACCEL = -3500;       // -3.5 m/s2
 
-const int TOYOTA_ISO_MAX_ACCEL = 4000;        // 2.0 m/s2 above 20m/s and 4.0 below 5m/s
-const int TOYOTA_ISO_MIN_ACCEL = -5000;       // -3.5 m/s2 above 20m/s and -5.0m below 5m/s
+const int TOYOTA_ISO_MAX_ACCEL = 4000;        // 4.0 m/s2
+const int TOYOTA_ISO_MIN_ACCEL = -5000;       // -5.0 m/s2
 
 const int TOYOTA_STANDSTILL_THRSLD = 100;  // 1kph
 
@@ -31,23 +31,22 @@ const int TOYOTA_GAS_INTERCEPTOR_THRSLD = 845;
 
 const CanMsg TOYOTA_TX_MSGS[] = {{0x283, 0, 7}, {0x2E6, 0, 8}, {0x2E7, 0, 8}, {0x33E, 0, 7}, {0x344, 0, 8}, {0x365, 0, 7}, {0x366, 0, 7}, {0x4CB, 0, 8},  // DSU bus 0
                                   {0x128, 1, 6}, {0x141, 1, 4}, {0x160, 1, 8}, {0x161, 1, 7}, {0x470, 1, 4},  // DSU bus 1
-                                  {0x367, 0, 2}, {0x414, 0, 8}, {0x489, 0, 8}, {0x48a, 0, 8}, {0x48b, 0, 8}, {0x4d3, 0, 8}, // CAM bus 0
-                                  {0x130, 1, 7}, {0x240, 1, 7}, {0x241, 1, 7}, {0x244, 1, 7}, {0x245, 1, 7}, {0x248, 1, 7}, {0x466, 1, 3}, // CAM bus 1
                                   {0x2E4, 0, 5}, {0x411, 0, 8}, {0x412, 0, 8}, {0x343, 0, 8}, {0x1D2, 0, 8},  // LKAS + ACC
-                                  {0x200, 0, 6}, {0x750, 0, 8}};  // interceptor + Blindspot monitor
+                                  {0x200, 0, 6}, {0x750, 0, 8}};  // interceptor + BSM
 
 AddrCheckStruct toyota_rx_checks[] = {
-  {.msg = {{ 0xaa, 0, 8}}, .check_checksum = false, .expected_timestep = 12000U},
-  {.msg = {{0x260, 0, 8}}, .check_checksum = true, .expected_timestep = 20000U},
-  {.msg = {{0x1D2, 0, 8}}, .check_checksum = true, .expected_timestep = 30000U},
-  {.msg = {{0x224, 0, 8}, {0x226, 0, 8}}, .check_checksum = false, .expected_timestep = 25000U},
+  {.msg = {{ 0xaa, 0, 8, .check_checksum = false, .expected_timestep = 12000U}}},
+  {.msg = {{0x260, 0, 8, .check_checksum = true, .expected_timestep = 20000U}}},
+  {.msg = {{0x1D3, 0, 8, .check_checksum = true, .expected_timestep = 30000U}}},
+  {.msg = {{0x224, 0, 8, .check_checksum = false, .expected_timestep = 25000U},
+           {0x226, 0, 8, .check_checksum = false, .expected_timestep = 25000U}}},
 };
 const int TOYOTA_RX_CHECKS_LEN = sizeof(toyota_rx_checks) / sizeof(toyota_rx_checks[0]);
 
 // global actuation limit states
 int toyota_dbc_eps_torque_factor = 100;   // conversion factor for STEER_TORQUE_EPS in %: see dbc file
 
-int ego_speed_toyota = 0;                 // speed
+int ego_speed_toyota = 0; // speed
 
 static uint8_t toyota_compute_checksum(CAN_FIFOMailBox_TypeDef *to_push) {
   int addr = GET_ADDR(to_push);
@@ -68,7 +67,6 @@ static int toyota_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
 
   bool valid = addr_safety_check(to_push, toyota_rx_checks, TOYOTA_RX_CHECKS_LEN,
                                  toyota_get_checksum, toyota_compute_checksum, NULL);
-  bool unsafe_allow_gas = unsafe_mode & UNSAFE_DISABLE_DISENGAGE_ON_GAS;
 
   if (valid && (GET_BUS(to_push) == 0)) {
     int addr = GET_ADDR(to_push);
@@ -102,12 +100,10 @@ static int toyota_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
       }
       cruise_engaged_prev = cruise_engaged;
 
-      // handle gas_pressed
-      bool gas_pressed = ((GET_BYTE(to_push, 0) >> 4) & 1) == 0;
-      if (!unsafe_allow_gas && gas_pressed && !gas_pressed_prev && !gas_interceptor_detected) {
-        controls_allowed = 0;
+      // sample gas pedal
+      if (!gas_interceptor_detected) {
+        gas_pressed = ((GET_BYTE(to_push, 0) >> 4) & 1) == 0;
       }
-      gas_pressed_prev = gas_pressed;
     }
 
     // sample speed
@@ -122,32 +118,23 @@ static int toyota_rx_hook(CAN_FIFOMailBox_TypeDef *to_push) {
       vehicle_moving = ego_speed_toyota > TOYOTA_STANDSTILL_THRSLD;
     }
 
-    // exit controls on rising edge of brake pedal
     // most cars have brake_pressed on 0x226, corolla and rav4 on 0x224
     if ((addr == 0x224) || (addr == 0x226)) {
       int byte = (addr == 0x224) ? 0 : 4;
-      bool brake_pressed = ((GET_BYTE(to_push, byte) >> 5) & 1) != 0;
-      if (!unsafe_mode && brake_pressed && (!brake_pressed_prev || vehicle_moving)) {
-        controls_allowed = 0;
-      }
-      brake_pressed_prev = brake_pressed;
+      brake_pressed = ((GET_BYTE(to_push, byte) >> 5) & 1) != 0;
     }
 
-    // exit controls on rising edge of interceptor gas press
+    // sample gas interceptor
     if (addr == 0x201) {
       gas_interceptor_detected = 1;
       int gas_interceptor = TOYOTA_GET_INTERCEPTOR(to_push);
-      if (!unsafe_allow_gas && (gas_interceptor > TOYOTA_GAS_INTERCEPTOR_THRSLD) &&
-          (gas_interceptor_prev <= TOYOTA_GAS_INTERCEPTOR_THRSLD)) {
-        controls_allowed = 0;
-      }
+      gas_pressed = gas_interceptor > TOYOTA_GAS_INTERCEPTOR_THRSLD;
+
+      // TODO: remove this, only left in for gas_interceptor_prev test
       gas_interceptor_prev = gas_interceptor;
     }
 
-    // 0x2E4 is lkas cmd. If it is on bus 0, then relay is unexpectedly closed
-    if ((safety_mode_cnt > RELAY_TRNS_TIMEOUT) && (addr == 0x2E4)) {
-      relay_malfunction_set();
-    }
+    generic_rx_checks((addr == 0x2E4));
   }
   return valid;
 }
@@ -190,7 +177,7 @@ static int toyota_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
       bool violation = (unsafe_mode & UNSAFE_RAISE_LONGITUDINAL_LIMITS_TO_ISO_MAX)?
         max_limit_check(desired_accel, TOYOTA_ISO_MAX_ACCEL, TOYOTA_ISO_MIN_ACCEL) :
         max_limit_check(desired_accel, TOYOTA_MAX_ACCEL, TOYOTA_MIN_ACCEL);
-        
+
       if (violation) {
         tx = 0;
       }
@@ -230,9 +217,11 @@ static int toyota_tx_hook(CAN_FIFOMailBox_TypeDef *to_send) {
       // no torque if controls is not allowed
       if (!controls_allowed) {
         if (ego_speed_toyota > 4500){
-          violation |= max_limit_check(desired_torque, 805, -805);
+          violation |= max_limit_check(desired_torque,805,-805);
         } else {
-        violation = 1;
+          if (desired_torque != 0){
+            violation = 1;
+          }
         }
       }
 

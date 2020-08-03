@@ -75,7 +75,7 @@ class CarState(CarStateBase):
     else:
       ret.gas = cp.vl["GAS_PEDAL"]['GAS_PEDAL']
       ret.gasPressed = cp.vl["PCM_CRUISE"]['GAS_RELEASED'] == 0
-    
+
     ret.wheelSpeeds.fl = cp.vl["WHEEL_SPEEDS"]['WHEEL_SPEED_FL'] * CV.KPH_TO_MS
     ret.wheelSpeeds.fr = cp.vl["WHEEL_SPEEDS"]['WHEEL_SPEED_FR'] * CV.KPH_TO_MS
     ret.wheelSpeeds.rl = cp.vl["WHEEL_SPEEDS"]['WHEEL_SPEED_RL'] * CV.KPH_TO_MS
@@ -172,7 +172,7 @@ class CarState(CarStateBase):
     msg.arne182Status.leftBlindspotD1 = self.leftblindspotD1
     msg.arne182Status.leftBlindspotD2 = self.leftblindspotD2
     msg.arne182Status.gasbuttonstatus = self.gasbuttonstatus
-    
+
     if not travis:
       self.arne_sm.update(0)
       self.sm.update(0)
@@ -188,6 +188,7 @@ class CarState(CarStateBase):
     ret.steeringTorqueEps = cp.vl["STEER_TORQUE_SENSOR"]['STEER_TORQUE_EPS']
     # we could use the override bit from dbc, but it's triggered at too high torque values
     ret.steeringPressed = abs(ret.steeringTorque) > STEER_THRESHOLD
+    ret.steerWarning = cp.vl["EPS_STATUS"]['LKA_STATE'] not in [1, 5]
 
     if self.CP.carFingerprint == CAR.LEXUS_IS:
       self.main_on = cp.vl["DSU_CRUISE"]['MAIN_ON'] != 0
@@ -265,6 +266,7 @@ class CarState(CarStateBase):
       ret.cruiseState.standstill = False
     else:
       ret.cruiseState.standstill = self.pcm_acc_status == 7
+
     self.pcm_acc_active = bool(cp.vl["PCM_CRUISE"]['CRUISE_ACTIVE'])
     ret.cruiseState.enabled = self.pcm_acc_active
 
@@ -483,6 +485,12 @@ class CarState(CarStateBase):
     if CP.carFingerprint in TSS2_CAR:
       signals += [("L_ADJACENT", "BSM", 0)]
       signals += [("R_ADJACENT", "BSM", 0)]
+
+    if CP.carFingerprint in TSS2_CAR:
+      signals += [("L_ADJACENT", "BSM", 0)]
+      signals += [("L_APPROACHING", "BSM", 0)]
+      signals += [("R_ADJACENT", "BSM", 0)]
+      signals += [("R_APPROACHING", "BSM", 0)]
 
     return CANParser(DBC[CP.carFingerprint]['pt'], signals, checks, 0)
 

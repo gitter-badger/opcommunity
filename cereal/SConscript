@@ -13,6 +13,7 @@ env.Command(
 env.Command(
   ['gen/cpp/car.capnp.c++', 'gen/cpp/log.capnp.c++', 'gen/cpp/arne182.capnp.c++', 'gen/cpp/car.capnp.h', 'gen/cpp/log.capnp.h', 'gen/cpp/arne182.capnp.h'],
   ['car.capnp', 'log.capnp', 'arne182.capnp'],
+
   'capnpc $SOURCES --src-prefix=cereal -o c++:' + gen_dir.path + '/cpp/')
 import shutil
 if shutil.which('capnpc-java'):
@@ -32,7 +33,7 @@ cereal_objects = env.SharedObject([
   ])
 
 env.Library('cereal', cereal_objects)
-env.SharedLibrary('cereal_shared', cereal_objects, LIBS=["capnp_c"])
+env.SharedLibrary('cereal_shared', cereal_objects)
 
 cereal_dir = Dir('.')
 services_h = env.Command(
@@ -45,6 +46,7 @@ messaging_objects = env.SharedObject([
   'messaging/impl_zmq.cc',
   'messaging/impl_msgq.cc',
   'messaging/msgq.cc',
+  'messaging/socketmaster.cc',
 ])
 
 messaging_arne_objects = env.SharedObject([
@@ -61,9 +63,11 @@ Depends('messaging_arne/impl_zmq.cc', services_h)
 
 # note, this rebuilds the deps shared, zmq is statically linked to make APK happy
 # TODO: get APK to load system zmq to remove the static link
-shared_lib_shared_lib = [zmq, 'm', 'stdc++'] + ["gnustl_shared"] if arch == "aarch64" else [zmq]
-env.SharedLibrary('messaging_shared', messaging_objects, LIBS=shared_lib_shared_lib)
-env.SharedLibrary('messaging_arne_shared', messaging_arne_objects, LIBS=shared_lib_shared_lib)
+if arch == "aarch64":
+  zmq_static = FindFile("libzmq.a", "/usr/lib")
+  shared_lib_shared_lib = [zmq_static, 'm', 'stdc++', "gnustl_shared", "kj", "capnp"]
+  env.SharedLibrary('messaging_shared', messaging_objects, LIBS=shared_lib_shared_lib)
+  env.SharedLibrary('messaging_arne_shared', messaging_arne_objects, LIBS=shared_lib_shared_lib)
 
 env.Program('messaging/bridge', ['messaging/bridge.cc'], LIBS=[messaging_lib, 'zmq'])
 env.Program('messaging_arne/bridge', ['messaging_arne/bridge.cc'], LIBS=[messaging_lib, 'zmq'])

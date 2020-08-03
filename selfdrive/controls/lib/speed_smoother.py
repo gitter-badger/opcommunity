@@ -18,9 +18,9 @@ def speed_smoother(vEgo, aEgo, vT, aMax, aMin, jMax, jMin, ts):
 
   # recover quickly if dV is positive and aEgo is negative or viceversa
   if dV > 0. and aEgo < 0.:
-    jMax *= 10.
+    jMax *= 30.
   elif dV < 0. and aEgo > 0.:
-    jMin *= 5.
+    jMin *= 15.
 
   tDelta = get_delta_out_limits(aEgo, aMax, aMin, jMax, jMin)
 
@@ -67,7 +67,7 @@ def speed_smoother(vEgo, aEgo, vT, aMax, aMin, jMax, jMin, ts):
   if aPeak > aMax:
     aPeak = aMax
     t1 = (aPeak - aEgo) / jMax
-    if aPeak <= 0: # there is no solution, so stop after t1
+    if aPeak <= 0:  # there is no solution, so stop after t1
       t2 = t1 + ts + 1e-9
       t3 = t2
     else:

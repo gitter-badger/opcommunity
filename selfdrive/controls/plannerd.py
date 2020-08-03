@@ -15,7 +15,7 @@ def plannerd_thread(sm=None, pm=None, arne_sm=None):
   gc.disable()
 
   # start the loop
-  set_realtime_priority(2)
+  set_realtime_priority(52)
 
   cloudlog.info("plannerd is waiting for CarParams")
   CP = car.CarParams.from_bytes(Params().get("CarParams", block=True))
@@ -29,7 +29,7 @@ def plannerd_thread(sm=None, pm=None, arne_sm=None):
   if sm is None:
     sm = messaging.SubMaster(['carState', 'controlsState', 'radarState', 'model', 'liveParameters', 'liveMapData'])
   if arne_sm is None:
-    arne_sm = messaging_arne.SubMaster(['arne182Status', 'latControl'])
+    arne_sm = messaging_arne.SubMaster(['arne182Status', 'latControl', 'modelLongButton'])
   if pm is None:
     pm = messaging.PubMaster(['plan', 'liveLongitudinalMpc', 'pathPlan', 'liveMpc'])
 
@@ -41,7 +41,7 @@ def plannerd_thread(sm=None, pm=None, arne_sm=None):
   while True:
     sm.update()
     arne_sm.update(0)
-    
+
     if sm.updated['model']:
       PP.update(sm, pm, CP, VM)
     if sm.updated['radarState']:
