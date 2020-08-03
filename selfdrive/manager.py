@@ -13,7 +13,7 @@ from typing import Dict, List
 from selfdrive.swaglog import cloudlog, add_logentries_handler
 from common.basedir import BASEDIR, PARAMS
 from common.android import ANDROID
-from common.op_param import opParams
+from common.op_params import opParams
 op_params = opParams()
 
 traffic_lights = op_params.get('traffic_lights', False)
@@ -250,7 +250,6 @@ car_started_processes = [
   'plannerd',
   'loggerd',
   'radard',
-  'trafficd',
   'calibrationd',
   'paramsd',
   'camerad',
@@ -260,10 +259,13 @@ car_started_processes = [
   'mapd',
   'thermalonlined',
   'locationd',
-  'traffic_manager',
   'dmonitoringd',
 ]
-
+if traffic_lights:
+  car_started_processes += [
+    'trafficd',
+    'traffic_manager',
+  ]
 if WEBCAM:
   car_started_processes += [
     'dmonitoringmodeld',
