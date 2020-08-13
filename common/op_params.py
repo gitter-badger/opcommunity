@@ -55,7 +55,7 @@ class opParams:
                            'keep_openpilot_engaged': {'default': True, 'allowed_types': [bool],
                                                       'description': 'True is stock behavior in this fork. False lets you use the brake and cruise control stalk to disengage as usual', 'live': False},
                            'limit_rsa': {'default': False, 'allowed_types': [bool], 'description': "Switch off RSA above rsa_max_speed", 'live': False},
-                           'mpc_offset': {'default': 5.0, 'allowed_types': [float, int], 'description': 'Offset model braking by how many m/s. Lower numbers equals more model braking', 'live': True},
+                           'mpc_offset': {'default': 0.0, 'allowed_types': [float, int], 'description': 'Offset model braking by how many m/s. Lower numbers equals more model braking', 'live': True},
                            'offset_limit': {'default': 0, 'allowed_types': [float, int], 'description': 'Speed at which apk percent offset will work in m/s', 'live': False},
                            'osm': {'default': True, 'allowed_types': [bool], 'description': 'Whether to use OSM for drives', 'live': False},
                            'op_edit_live_mode': {'default': False, 'allowed_types': [bool], 'description': 'This parameter controls which mode opEdit starts in. It should be hidden from the user with the hide key', 'hide': True},
