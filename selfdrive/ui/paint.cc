@@ -23,8 +23,8 @@ const mat3 intrinsic_matrix = (mat3){{
 const uint8_t alert_colors[][4] = {
   [STATUS_STOPPED] = {0x07, 0x23, 0x39, 0xf1},
   [STATUS_DISENGAGED] = {0x17, 0x33, 0x49, 0xc8},
-  [STATUS_ENGAGED] = {0x17, 0x86, 0x44, 0xf1},
-  [STATUS_WARNING] = {0xDA, 0x6F, 0x25, 0xf1},
+  [STATUS_ENGAGED] = {0x17, 0x86, 0x44, 0x01},
+  [STATUS_WARNING] = {0xDA, 0x6F, 0x25, 0x01},
   [STATUS_ALERT] = {0xC9, 0x22, 0x31, 0xf1},
 };
 
@@ -1065,12 +1065,12 @@ static void bb_ui_draw_measures_right(UIState *s, int bb_x, int bb_y, int bb_w )
     char val_str[16];
     char uom_str[6];
     NVGcolor val_color = nvgRGBA(255, 255, 255, 200);
-      //show Orange if more than 6 degrees
-      //show red if  more than 12 degrees
-      if(((int)(scene->angleSteers) < -6) || ((int)(scene->angleSteers) > 6)) {
+      //show Orange if more than 30 degrees
+      //show red if  more than 60 degrees
+      if(((int)(scene->angleSteers) < -30) || ((int)(scene->angleSteers) > 30)) {
         val_color = nvgRGBA(255, 188, 3, 200);
       }
-      if(((int)(scene->angleSteers) < -12) || ((int)(scene->angleSteers) > 12)) {
+      if(((int)(scene->angleSteers) < -60) || ((int)(scene->angleSteers) > 60)) {
         val_color = nvgRGBA(255, 0, 0, 200);
       }
       // steering is in degrees
@@ -1090,12 +1090,12 @@ static void bb_ui_draw_measures_right(UIState *s, int bb_x, int bb_y, int bb_w )
     char uom_str[6];
     NVGcolor val_color = nvgRGBA(255, 255, 255, 200);
     if (scene->controls_state.getEnabled()) {
-      //show Orange if more than 6 degrees
-      //show red if  more than 12 degrees
-      if(((int)(scene->angleSteersDes) < -6) || ((int)(scene->angleSteersDes) > 6)) {
+      //show Orange if more than 30 degrees
+      //show red if  more than 60 degrees
+      if(((int)(scene->angleSteersDes) < -30) || ((int)(scene->angleSteersDes) > 30)) {
         val_color = nvgRGBA(255, 188, 3, 200);
       }
-      if(((int)(scene->angleSteersDes) < -12) || ((int)(scene->angleSteersDes) > 12)) {
+      if(((int)(scene->angleSteersDes) < -60) || ((int)(scene->angleSteersDes) > 60)) {
         val_color = nvgRGBA(255, 0, 0, 200);
       }
       // steering is in degrees
