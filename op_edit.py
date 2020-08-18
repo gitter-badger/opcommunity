@@ -168,7 +168,7 @@ class opEdit:  # use by running `python /data/openpilot/op_edit.py`
       self.info('Current value: {} (type: {})'.format(old_value, type(old_value).__name__), sleep_time=0)
 
       while True:
-        self.prompt('\nEnter your new value:')
+        self.prompt('\nEnter your new value or just press enter to exit:')
         new_value = input('>> ').strip()
         if new_value == '':
           self.info('Exiting this parameter...', 0.5)
@@ -209,7 +209,7 @@ class opEdit:  # use by running `python /data/openpilot/op_edit.py`
       while True:
         self.info('Chosen index: {}'.format(choice_idx), sleep_time=0)
         self.info('Value: {} (type: {})'.format(old_value[choice_idx], type(old_value[choice_idx]).__name__), sleep_time=0)
-        self.prompt('\nEnter your new value:')
+        self.prompt('\nEnter your new value or just press enter to exit:')
         new_value = input('>> ').strip()
         if new_value == '':
           self.info('Exiting this list item...', 0.5)
