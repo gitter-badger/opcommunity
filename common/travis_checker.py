@@ -1,2 +1,2 @@
-from common.basedir import BASEDIR
-travis = BASEDIR.strip('/').split('/')[0] != 'data'
+import os
+travis = os.path.dirname(os.getcwd()).strip('/').split('/')[0] != 'data'

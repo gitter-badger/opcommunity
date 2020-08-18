@@ -72,6 +72,7 @@ class opParams:
                            'min_TR': {'default': None, 'allowed_types': [type(None), float, int], 'description': 'The minimum allowed following distance in seconds. Default is 0.9 seconds.\n'
                                                                                                                  'The range is limited from 0.85 to 1.3. Set to None to disable', 'live': True},
                            'use_virtual_middle_line': {'default': False, 'allowed_types': [bool], 'description': 'For roads over 4m wide, hug right. For roads under 2m wide, hug left.', 'live': False},
+                           'ludicrous_mode': {'default': False, 'allowed_types': [bool], 'description': 'Double overall acceleration!', 'live': False},
                            }
 
     self.params = {}
