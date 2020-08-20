@@ -94,8 +94,8 @@ class CarInterface(CarInterfaceBase):
 
       ret.lateralTuning.lqr.scale = 1500.0
       ret.lateralTuning.lqr.ki = 0.06
-      #ret.longitudinalTuning.kpV = [0.8, 1.0, 0.325]  # braking tune
-      #ret.longitudinalTuning.kiV = [0.35, 0.1]
+      ret.longitudinalTuning.kpV = [0.8, 1.0, 0.325]  # braking tune
+      ret.longitudinalTuning.kiV = [0.35, 0.1]
       ret.lateralTuning.lqr.a = [0., 1., -0.22619643, 1.21822268]
       ret.lateralTuning.lqr.b = [-1.92006585e-04, 3.95603032e-05]
       ret.lateralTuning.lqr.c = [1., 0.]
@@ -258,7 +258,7 @@ class CarInterface(CarInterfaceBase):
       ret.mass = 3060. * CV.LB_TO_KG + STD_CARGO_KG
       ret.lateralTuning.pid.kfV = [0.00007818594]
       if spairrowtuning:
-        ret.steerActuatorDelay = 0.57
+        ret.steerActuatorDelay = 0.60
         ret.steerRatio = 15.33
         ret.steerLimitTimer = 5.0
         tire_stiffness_factor = 0.996  # not optimized yet
@@ -398,7 +398,7 @@ class CarInterface(CarInterfaceBase):
     # create message
     ret_arne182 = arne182.CarStateArne182.new_message()
 
-    ret.canValid = self.cp.can_valid 
+    ret.canValid = self.cp.can_valid
     if self.CP.carFingerprint != CAR.COROLLA_2015:
       ret.canValid = ret.canValid and self.cp_cam.can_valid
     ret.steeringRateLimited = self.CC.steer_rate_limited if self.CC is not None else False

@@ -1,4 +1,6 @@
 #!/usr/bin/env python3
+import os
+os.chdir('/data/openpilot/')
 import time
 from common.op_params import opParams
 import ast
