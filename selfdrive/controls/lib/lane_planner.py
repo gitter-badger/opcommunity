@@ -95,9 +95,10 @@ class LanePlanner():
       if current_lane_width < 2.0:
         self.r_poly[3] -= 2.0 - current_lane_width # TODO: this should be l_poly if isRHD
         current_lane_width = 2.0
-      elif current_lane_width > 4.2:
-        self.l_poly[3] -= current_lane_width/2 # TODO: this should be r_poly if isRHD
-        current_lane_width = current_lane_width/2
+      elif current_lane_width > 4.0:
+        factor = min(current_lane_width - 4.0, 1.0)
+        self.l_poly[3] -= current_lane_width/2 * factor # TODO: this should be r_poly if isRHD
+        current_lane_width -= current_lane_width/2 * factor
     self.lane_width_estimate += 0.005 * (current_lane_width - self.lane_width_estimate)
     speed_lane_width = interp(v_ego, [0., 14., 20.], [2.5, 3., 3.5]) # German Standards
     self.lane_width = self.lane_width_certainty * self.lane_width_estimate + \
