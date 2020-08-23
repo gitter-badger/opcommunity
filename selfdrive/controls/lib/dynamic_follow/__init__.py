@@ -321,11 +321,11 @@ class DynamicFollow:
     self.car_data.cruise_enabled = CS.cruiseState.enabled
 
   def _get_live_params(self):
-    self.global_df_mod = self.op_params.get('global_df_mod', None)
+    self.global_df_mod = self.op_params.get('global_df_mod')
     if self.global_df_mod is not None:
       self.global_df_mod = np.clip(self.global_df_mod, 0.85, 1.2)
 
-    self.min_TR = self.op_params.get('min_TR', None)
+    self.min_TR = self.op_params.get('min_TR')
     if self.min_TR is not None:
       self.min_TR = clip(self.min_TR, 0.85, 1.3)
     else:

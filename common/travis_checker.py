@@ -1,2 +1,3 @@
 import os
-travis = os.path.dirname(os.getcwd()).strip('/').split('/')[0] != 'data'
+BASEDIR = os.path.abspath(os.path.join(os.path.dirname(os.path.realpath(__file__)), "../"))
+travis = BASEDIR.strip('/').split('/')[0] != 'data'

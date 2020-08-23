@@ -14,8 +14,8 @@ from selfdrive.car.toyota.values import CAR, DBC, STEER_THRESHOLD, TSS2_CAR, NO_
 from common.op_params import opParams
 
 op_params = opParams()
-rsa_max_speed = op_params.get('rsa_max_speed', 24.5)
-limit_rsa = op_params.get('limit_rsa', False)
+rsa_max_speed = op_params.get('rsa_max_speed')
+limit_rsa = op_params.get('limit_rsa')
 
 class CarState(CarStateBase):
   def __init__(self, CP):
@@ -278,10 +278,7 @@ class CarState(CarStateBase):
       ret.genericToggle = cp.vl["AUTOPARK_STATUS"]['STATE'] != 0
     else:
       ret.genericToggle = bool(cp.vl["LIGHT_STALK"]['AUTO_HIGH_BEAM'])
-    if self.CP.carFingerprint == CAR.COROLLA_2015:
-      ret.stockAeb = False
-    else:
-      ret.stockAeb = bool(cp_cam.vl["PRE_COLLISION"]["PRECOLLISION_ACTIVE"] and cp_cam.vl["PRE_COLLISION"]["FORCE"] < -1e-5)
+    ret.stockAeb = bool(cp_cam.vl["PRE_COLLISION"]["PRECOLLISION_ACTIVE"] and cp_cam.vl["PRE_COLLISION"]["FORCE"] < -1e-5)
 
     ret.espDisabled = cp.vl["ESP_CONTROL"]['TC_DISABLED'] != 0
     # 2 is standby, 10 is active. TODO: check that everything else is really a faulty state

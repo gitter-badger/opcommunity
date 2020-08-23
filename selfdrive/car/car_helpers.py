@@ -16,7 +16,7 @@ from common.travis_checker import travis
 from common.op_params import opParams
 
 op_params = opParams()
-use_car_caching = op_params.get('use_car_caching', True)
+use_car_caching = op_params.get('use_car_caching')
 
 from cereal import car, log
 EventName = car.CarEvent.EventName

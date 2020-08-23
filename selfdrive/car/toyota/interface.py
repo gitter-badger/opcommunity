@@ -8,7 +8,7 @@ from selfdrive.car.interfaces import CarInterfaceBase
 from common.op_params import opParams
 
 op_params = opParams()
-spairrowtuning = op_params.get('spairrowtuning', False)
+spairrowtuning = op_params.get('spairrowtuning')
 
 GearShifter = car.CarState.GearShifter
 
@@ -397,7 +397,6 @@ class CarInterface(CarInterfaceBase):
 
     # create message
     ret_arne182 = arne182.CarStateArne182.new_message()
-
     ret.canValid = self.cp.can_valid
     if self.CP.carFingerprint != CAR.COROLLA_2015:
       ret.canValid = ret.canValid and self.cp_cam.can_valid

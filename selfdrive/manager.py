@@ -16,7 +16,7 @@ from common.android import ANDROID
 from common.op_params import opParams
 op_params = opParams()
 
-traffic_lights = op_params.get('traffic_lights', False)
+traffic_lights = op_params.get('traffic_lights')
 
 WEBCAM = os.getenv("WEBCAM") is not None
 sys.path.append(os.path.join(BASEDIR, "pyextra"))
