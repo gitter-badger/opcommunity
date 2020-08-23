@@ -81,7 +81,7 @@ class LanePlanner():
       self.r_lane_change_prob = md.meta.desireState[log.PathPlan.Desire.laneChangeRight - 1]
 
   def update_d_poly(self, v_ego):
-    CAMERA_OFFSET = op_params.get('camera_offset', 0.06)
+    CAMERA_OFFSET = op_params.get('camera_offset')
     # only offset left and right lane lines; offsetting p_poly does not make sense
     self.l_poly[3] += CAMERA_OFFSET
     self.r_poly[3] += CAMERA_OFFSET
@@ -89,7 +89,7 @@ class LanePlanner():
     # Find current lanewidth
     self.lane_width_certainty += 0.05 * (self.l_prob * self.r_prob - self.lane_width_certainty)
     current_lane_width = abs(self.l_poly[3] - self.r_poly[3])
-    if op_params.get('use_virtual_middle_line', False) and v_ego < 14.15:
+    if op_params.get('use_virtual_middle_line') and v_ego < 14.15:
       #lane_width = self.lane_width
       #print(current_lane_width)
       if current_lane_width < 2.0:
